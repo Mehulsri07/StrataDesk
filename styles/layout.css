@@ -1322,6 +1322,83 @@
   font-size: var(--font-size-lg);
 }
 
+/* Pipeline Step Details - Inline error/warning display */
+.progress-step.warning {
+  border-color: var(--warning);
+  background: var(--warning-light);
+}
+
+.progress-step.error {
+  border-color: var(--danger);
+  background: var(--danger-light);
+}
+
+.step-details {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  width: 100%;
+}
+
+.step-detail-message {
+  color: var(--text-muted);
+  margin-bottom: var(--spacing-xs);
+  font-style: italic;
+}
+
+.step-detail-errors,
+.step-detail-warnings {
+  margin-top: var(--spacing-xs);
+}
+
+.step-detail-errors strong {
+  color: var(--danger);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.step-detail-warnings strong {
+  color: var(--warning);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.step-detail-errors ul,
+.step-detail-warnings ul {
+  margin: var(--spacing-xs) 0 0 var(--spacing-md);
+  padding: 0;
+  list-style: none;
+}
+
+.step-detail-errors li,
+.step-detail-warnings li {
+  margin-bottom: var(--spacing-xs);
+  padding-left: var(--spacing-sm);
+  position: relative;
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.step-detail-errors li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--danger);
+  font-weight: bold;
+}
+
+.step-detail-warnings li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--warning);
+  font-weight: bold;
+}
+
 .progress-actions {
   display: flex;
   gap: var(--spacing-md);
