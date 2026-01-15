@@ -1,0 +1,66 @@
+{
+  "filename": "sample-pdf-basic.pdf",
+  "description": "PDF export of basic strata chart with readable text",
+  "content_type": "pdf",
+  "text_content": [
+    "BORING LOG - SITE INVESTIGATION",
+    "Project: Sample Site",
+    "Boring ID: B-001",
+    "Date: 2024-01-15",
+    "",
+    "DEPTH (ft)  MATERIAL      DESCRIPTION",
+    "0.0 - 2.0   Topsoil       Dark organic soil",
+    "2.0 - 8.0   Clay          Brown clay layer",
+    "8.0 - 15.0  Sand          Fine to medium sand",
+    "15.0 - 22.0 Gravel        Coarse gravel with cobbles",
+    "22.0 - 25.0 Bedrock       Limestone bedrock",
+    "",
+    "Total Depth: 25.0 feet",
+    "Water Level: Not encountered"
+  ],
+  "expected_output": {
+    "layers": [
+      {
+        "material": "Topsoil",
+        "start_depth": 0.0,
+        "end_depth": 2.0,
+        "confidence": "medium",
+        "source": "pdf-import"
+      },
+      {
+        "material": "Clay",
+        "start_depth": 2.0,
+        "end_depth": 8.0,
+        "confidence": "medium",
+        "source": "pdf-import"
+      },
+      {
+        "material": "Sand",
+        "start_depth": 8.0,
+        "end_depth": 15.0,
+        "confidence": "medium",
+        "source": "pdf-import"
+      },
+      {
+        "material": "Gravel",
+        "start_depth": 15.0,
+        "end_depth": 22.0,
+        "confidence": "medium",
+        "source": "pdf-import"
+      },
+      {
+        "material": "Bedrock",
+        "start_depth": 22.0,
+        "end_depth": 25.0,
+        "confidence": "medium",
+        "source": "pdf-import"
+      }
+    ],
+    "metadata": {
+      "depth_unit": "feet",
+      "total_depth": 25.0,
+      "layer_count": 5,
+      "extraction_confidence": "medium"
+    }
+  }
+}

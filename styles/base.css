@@ -1,0 +1,224 @@
+/* Base styles and resets for modern desktop app */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  font-size: var(--font-size-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography Hierarchy - Three clear tiers */
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text);
+}
+
+/* Primary tier - Section titles */
+h1 { 
+  font-size: var(--font-size-2xl); 
+  font-weight: var(--font-weight-semibold);
+  color: var(--text);
+}
+h2 { 
+  font-size: var(--font-size-xl); 
+  font-weight: var(--font-weight-semibold);
+  color: var(--text);
+}
+h3 { 
+  font-size: var(--font-size-lg); 
+  font-weight: var(--font-weight-semibold);
+  color: var(--text);
+}
+
+/* Secondary tier - Labels & metadata */
+h4 { 
+  font-size: var(--font-size-base); 
+  font-weight: var(--font-weight-medium);
+  color: var(--text-light);
+}
+
+/* Tertiary tier - Hints/help text */
+h5, h6 {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
+  color: var(--text-muted);
+}
+
+p {
+  margin: 0 0 var(--spacing-md) 0;
+}
+
+/* Modern form elements - Recessed and calm */
+input, select, textarea {
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  font-family: inherit;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  background: var(--panel);
+  border-color: var(--primary);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* Modern button styling */
+button {
+  cursor: pointer;
+  font-weight: var(--font-weight-medium);
+  background: var(--bg-tertiary);
+  color: var(--text-light);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+}
+
+button:hover {
+  background: var(--panel);
+  color: var(--text);
+}
+
+button:active {
+  background: var(--bg-secondary);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Button variants - Reserved for primary actions only */
+button.primary { 
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+button.primary:hover {
+  background: var(--primary);
+  opacity: 0.9;
+}
+
+button.success { 
+  background: var(--success);
+  color: white;
+  border-color: var(--success);
+}
+
+button.success:hover {
+  background: var(--success);
+  opacity: 0.9;
+}
+
+button.danger { 
+  background: var(--danger);
+  color: white;
+  border-color: var(--danger);
+}
+
+button.danger:hover {
+  background: var(--danger);
+  opacity: 0.9;
+}
+
+button.warning { 
+  background: var(--warning);
+  color: white;
+  border-color: var(--warning);
+}
+
+button.warning:hover {
+  background: var(--warning);
+  opacity: 0.9;
+}
+
+/* Labels - Secondary hierarchy */
+label {
+  display: block;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-xs);
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Links */
+a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Lists */
+ul, ol {
+  margin: 0;
+  padding: 0;
+}
+
+li {
+  list-style: none;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-light);
+}
+
+/* Selection */
+::selection {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+/* Focus outline */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}

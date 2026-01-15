@@ -1,0 +1,42 @@
+{
+  "filename": "sample-strata-edge-cases.xlsx",
+  "description": "Edge cases for strata chart extraction testing",
+  "sheets": [
+    {
+      "name": "Edge Cases",
+      "data": [
+        ["Depth (ft)", "Material", "Description"],
+        [0, "", "Missing material name"],
+        ["", "Clay", "Missing depth value"],
+        [5, "Sand", "Normal layer"],
+        [10, null, "Null material"],
+        ["invalid", "Gravel", "Invalid depth format"],
+        [15, "Rock", "Normal layer after errors"],
+        [15, "Limestone", "Overlapping depth"],
+        [20, "Bedrock", "Final layer"]
+      ],
+      "colors": {
+        "B1": null,
+        "B2": "#8B4513", 
+        "B3": "#F4A460",
+        "B4": null,
+        "B5": "#A0A0A0",
+        "B6": "#696969",
+        "B7": "#F5F5DC",
+        "B8": "#2F4F4F"
+      }
+    }
+  ],
+  "expected_behavior": {
+    "should_skip_invalid_rows": true,
+    "should_handle_missing_data": true,
+    "should_resolve_overlaps": true,
+    "expected_valid_layers": 4,
+    "expected_warnings": [
+      "Missing material name at depth 0",
+      "Missing depth value for Clay",
+      "Invalid depth format: 'invalid'",
+      "Overlapping depths detected at 15 ft"
+    ]
+  }
+}

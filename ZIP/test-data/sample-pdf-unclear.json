@@ -1,0 +1,31 @@
+{
+  "filename": "sample-pdf-unclear.pdf",
+  "description": "PDF with poor readability for error testing",
+  "content_type": "pdf",
+  "text_content": [
+    "B0R1NG L0G - S1T3 1NV3ST1GAT10N",
+    "Pr0j3ct: S@mpl3 S1t3",
+    "B0r1ng 1D: B-001",
+    "D@t3: 2024-01-15",
+    "",
+    "D3PTH (ft)  M@T3R1@L      D3SCR1PT10N",
+    "0.0 - ?.0   T0ps01l       D@rk 0rg@n1c s01l",
+    "?.0 - 8.0   Cl@y          Br0wn cl@y l@y3r",
+    "8.0 - ??.0  S@nd          F1n3 t0 m3d1um s@nd",
+    "??.0 - 22.0 Gr@v3l        C0@rs3 gr@v3l w1th c0bbl3s",
+    "22.0 - ??.0 B3dr0ck       L1m3st0n3 b3dr0ck",
+    "",
+    "T0t@l D3pth: ??.0 f33t",
+    "W@t3r L3v3l: N0t 3nc0unt3r3d"
+  ],
+  "expected_behavior": {
+    "should_fail_extraction": true,
+    "expected_errors": [
+      "Poor text quality detected",
+      "Unable to parse depth values",
+      "Material names unclear",
+      "Insufficient confidence for extraction"
+    ],
+    "fallback_required": true
+  }
+}

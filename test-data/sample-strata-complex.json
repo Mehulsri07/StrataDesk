@@ -1,0 +1,113 @@
+{
+  "filename": "sample-strata-complex.xlsx",
+  "description": "Complex strata chart with multiple materials and varying depths",
+  "sheets": [
+    {
+      "name": "Boring Log",
+      "data": [
+        ["From (ft)", "To (ft)", "Soil Type", "SPT N-Value", "Notes"],
+        [0, 1.5, "Fill", 4, "Loose fill material"],
+        [1.5, 3.2, "Silty Clay", 8, "Medium stiff"],
+        [3.2, 5.8, "Sandy Clay", 12, "Stiff with organics"],
+        [5.8, 8.1, "Fine Sand", 18, "Dense, some silt"],
+        [8.1, 12.5, "Medium Sand", 25, "Very dense"],
+        [12.5, 15.3, "Clayey Sand", 15, "Medium dense"],
+        [15.3, 18.7, "Gravel", 35, "Very dense, cobbles"],
+        [18.7, 22.0, "Sandy Gravel", 42, "Very dense"],
+        [22.0, 25.5, "Weathered Rock", 50, "Highly weathered"],
+        [25.5, 30.0, "Bedrock", "Refusal", "Sound rock"]
+      ],
+      "colors": {
+        "C1": "#8B4513",
+        "C2": "#A0522D", 
+        "C3": "#CD853F",
+        "C4": "#F4A460",
+        "C5": "#DEB887",
+        "C6": "#D2B48C",
+        "C7": "#A0A0A0",
+        "C8": "#808080",
+        "C9": "#696969",
+        "C10": "#2F4F4F"
+      }
+    }
+  ],
+  "expected_output": {
+    "layers": [
+      {
+        "material": "Fill",
+        "start_depth": 0,
+        "end_depth": 1.5,
+        "confidence": "high",
+        "source": "excel-import"
+      },
+      {
+        "material": "Silty Clay",
+        "start_depth": 1.5,
+        "end_depth": 3.2,
+        "confidence": "high",
+        "source": "excel-import"
+      },
+      {
+        "material": "Sandy Clay",
+        "start_depth": 3.2,
+        "end_depth": 5.8,
+        "confidence": "high",
+        "source": "excel-import"
+      },
+      {
+        "material": "Fine Sand",
+        "start_depth": 5.8,
+        "end_depth": 8.1,
+        "confidence": "high",
+        "source": "excel-import"
+      },
+      {
+        "material": "Medium Sand",
+        "start_depth": 8.1,
+        "end_depth": 12.5,
+        "confidence": "high",
+        "source": "excel-import"
+      },
+      {
+        "material": "Clayey Sand",
+        "start_depth": 12.5,
+        "end_depth": 15.3,
+        "confidence": "high",
+        "source": "excel-import"
+      },
+      {
+        "material": "Gravel",
+        "start_depth": 15.3,
+        "end_depth": 18.7,
+        "confidence": "high",
+        "source": "excel-import"
+      },
+      {
+        "material": "Sandy Gravel",
+        "start_depth": 18.7,
+        "end_depth": 22.0,
+        "confidence": "high",
+        "source": "excel-import"
+      },
+      {
+        "material": "Weathered Rock",
+        "start_depth": 22.0,
+        "end_depth": 25.5,
+        "confidence": "high",
+        "source": "excel-import"
+      },
+      {
+        "material": "Bedrock",
+        "start_depth": 25.5,
+        "end_depth": 30.0,
+        "confidence": "high",
+        "source": "excel-import"
+      }
+    ],
+    "metadata": {
+      "depth_unit": "feet",
+      "total_depth": 30.0,
+      "layer_count": 10
+    }
+  }
+}

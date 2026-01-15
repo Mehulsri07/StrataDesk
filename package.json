@@ -1,0 +1,149 @@
+{
+  "name": "strataDesk",
+  "version": "2.0.0",
+  "description": "Professional groundwater boring data management application",
+  "main": "main.js",
+  "homepage": "./",
+  "author": {
+    "name": "StrataDesk Team",
+    "email": "support@strataDesk.com"
+  },
+  "license": "MIT",
+  "keywords": [
+    "groundwater",
+    "boring",
+    "geology",
+    "data-management",
+    "offline",
+    "desktop-app"
+  ],
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "test": "jest --config jest.config.js",
+    "test:watch": "jest --watch",
+    "build": "electron-builder",
+    "build-win": "electron-builder --win",
+    "build-mac": "electron-builder --mac",
+    "build-linux": "electron-builder --linux",
+    "build-all": "electron-builder --win --mac --linux",
+    "pack": "electron-builder --dir",
+    "dist": "npm run build",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "build": {
+    "appId": "com.strataDesk.app",
+    "productName": "StrataDesk",
+    "copyright": "Copyright © 2024 StrataDesk Team",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "splash.html",
+      "styles/**/*",
+      "js/**/*",
+      "icons/icon.png",
+      "manifest.json",
+      "!node_modules/**/*",
+      "!dist/**/*",
+      "!build/**/*",
+      "!*.md",
+      "!sw.js"
+    ],
+    "extraResources": [],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icons/icon.png",
+      "publisherName": "StrataDesk Team",
+      "verifyUpdateCodeSignature": false,
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "icons/icon.png",
+      "category": "public.app-category.productivity",
+      "darkModeSupport": true
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icons/icon.png",
+      "category": "Office",
+      "synopsis": "Groundwater boring data management"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "StrataDesk"
+    },
+    "dmg": {
+      "title": "StrataDesk ${version}",
+      "iconSize": 100,
+      "contents": [
+        {
+          "x": 380,
+          "y": 280,
+          "type": "link",
+          "path": "/Applications"
+        },
+        {
+          "x": 110,
+          "y": 280,
+          "type": "file"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 380
+      }
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "strataDesk",
+      "repo": "strataDesk-desktop"
+    }
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "fast-check": "^4.5.3",
+    "jest": "^30.2.0"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^5.4.530",
+    "xlsx": "^0.18.5"
+  }
+}
