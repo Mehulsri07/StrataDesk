@@ -426,6 +426,87 @@ class ExtractionUI {
   }
   
   /**
+   * Get confidence display data with tooltip
+   * @param {string|number} confidence - Confidence level ('high'/'medium'/'low') or percentage
+   * @param {Object} layer - Layer data for context
+   * @returns {Object} { class, label, tooltip }
+   */
+  getConfidenceDisplay(confidence, layer = {}) {
+    let confidenceClass, confidenceLabel, confidencePercent;
+    
+    // Handle string confidence levels
+    if (typeof confidence === 'string') {
+      confidenceClass = confidence;
+      confidenceLabel = confidence.charAt(0).toUpperCase() + confidence.slice(1);
+      
+      // Estimate percentage from level
+      const percentMap = { 'high': 85, 'medium': 65, 'low': 35 };
+      confidencePercent = percentMap[confidence] || 50;
+    } else {
+      // Handle numeric confidence (0-1 or 0-100)
+      confidencePercent = confidence > 1 ? confidence : confidence * 100;
+      confidenceClass = this.getConfidenceClass(confidencePercent);
+      confidenceLabel = confidenceClass.charAt(0).toUpperCase() + confidenceClass.slice(1);
+    }
+    
+    // Build tooltip explanation
+    const tooltip = this.buildConfidenceTooltip(confidenceClass, confidencePercent, layer);
+    
+    return {
+      class: confidenceClass,
+      label: confidenceLabel,
+      percent: Math.round(confidencePercent),
+      tooltip: tooltip
+    };
+  }
+  
+  /**
+   * Build confidence tooltip explanation
+   * @param {string} level - Confidence level
+   * @param {number} percent - Confidence percentage
+   * @param {Object} layer - Layer data
+   * @returns {string} Tooltip HTML
+   */
+  buildConfidenceTooltip(level, percent, layer) {
+    const reasons = [];
+    
+    // Base explanation
+    if (level === 'high') {
+      reasons.push('✓ Clear material identification');
+      reasons.push('✓ Precise depth boundaries');
+      reasons.push('✓ Consistent with expected patterns');
+    } else if (level === 'medium') {
+      reasons.push('⚠ Material partially identified');
+      reasons.push('⚠ Depth boundaries estimated');
+      reasons.push('→ Manual review recommended');
+    } else {
+      reasons.push('⚠ Material unclear or ambiguous');
+      reasons.push('⚠ Depth boundaries uncertain');
+      reasons.push('→ Manual verification required');
+    }
+    
+    // Add layer-specific context if available
+    if (layer.user_edited) {
+      reasons.push('✓ User verified');
+    }
+    
+    if (layer.source === 'fallback') {
+      reasons.push('⚠ Extracted using fallback method');
+    }
+    
+    return `
+      <div class="confidence-tooltip">
+        <div class="tooltip-header">
+          <strong>Confidence: ${percent}%</strong>
+        </div>
+        <div class="tooltip-body">
+          ${reasons.map(r => `<div class="tooltip-reason">${r}</div>`).join('')}
+        </div>
+      </div>
+    `;
+  }
+  
+  /**
    * Show extraction complete state
    */
   showExtractionComplete() {

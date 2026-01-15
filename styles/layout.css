@@ -1574,6 +1574,62 @@
   color: var(--text);
 }
 
+/* Confidence Badges with Tooltips */
+.layer-confidence-wrapper {
+  position: relative;
+}
+
+.layer-confidence {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: help;
+  transition: all var(--transition-fast);
+}
+
+.layer-confidence:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.layer-confidence.high {
+  background: var(--success-light);
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+
+.layer-confidence.medium {
+  background: var(--warning-light);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+}
+
+.layer-confidence.low {
+  background: var(--danger-light);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+.confidence-label {
+  font-size: var(--font-size-xs);
+}
+
+.confidence-percent {
+  font-size: var(--font-size-xs);
+  opacity: 0.8;
+}
+
+/* Tooltip styling (using native title for now, can enhance later) */
+.layer-confidence[data-tooltip] {
+  position: relative;
+}
+
 .progress-actions {
   display: flex;
   gap: var(--spacing-md);

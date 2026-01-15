@@ -820,7 +820,7 @@ class ExtractionTabManager {
   
   renderLayerList(layers) {
     return layers.map((layer, index) => {
-      const confidenceClass = layer.confidence || 'medium';
+      const confidenceData = this.getConfidenceDisplay(layer.confidence, layer);
       const color = this.getLayerColor(layer.material);
       
       return `
@@ -828,12 +828,84 @@ class ExtractionTabManager {
           <div class="layer-color" style="background-color: ${color}"></div>
           <div class="layer-info">
             <div class="layer-material">${layer.material}</div>
-            <div class="layer-depth">${layer.start_depth}ft - ${layer.end_depth}ft (${layer.end_depth - layer.start_depth}ft thick)</div>
+            <div class="layer-depth">${layer.start_depth}ft - ${layer.end_depth}ft (${(layer.end_depth - layer.start_depth).toFixed(1)}ft thick)</div>
           </div>
-          <div class="layer-confidence ${confidenceClass}">${confidenceClass}</div>
+          <div class="layer-confidence-wrapper">
+            <div class="layer-confidence ${confidenceData.class}" 
+                 data-tooltip="${confidenceData.tooltip.replace(/"/g, '&quot;').replace(/\n/g, ' ')}"
+                 title="Click for details">
+              <span class="confidence-label">${confidenceData.label}</span>
+              <span class="confidence-percent">${confidenceData.percent}%</span>
+            </div>
+          </div>
         </div>
       `;
     }).join('');
+  }
+  
+  /**
+   * Get confidence display data with tooltip
+   * @param {string|number} confidence - Confidence level or percentage
+   * @param {Object} layer - Layer data for context
+   * @returns {Object} { class, label, percent, tooltip }
+   */
+  getConfidenceDisplay(confidence, layer = {}) {
+    let confidenceClass, confidenceLabel, confidencePercent;
+    
+    // Handle string confidence levels
+    if (typeof confidence === 'string') {
+      confidenceClass = confidence;
+      confidenceLabel = confidence.charAt(0).toUpperCase() + confidence.slice(1);
+      
+      // Estimate percentage from level
+      const percentMap = { 'high': 85, 'medium': 65, 'low': 35 };
+      confidencePercent = percentMap[confidence] || 50;
+    } else {
+      // Handle numeric confidence (0-1 or 0-100)
+      confidencePercent = confidence > 1 ? confidence : confidence * 100;
+      confidenceClass = confidencePercent >= 70 ? 'high' : (confidencePercent >= 50 ? 'medium' : 'low');
+      confidenceLabel = confidenceClass.charAt(0).toUpperCase() + confidenceClass.slice(1);
+    }
+    
+    // Build tooltip explanation
+    const tooltip = this.buildConfidenceTooltip(confidenceClass, confidencePercent, layer);
+    
+    return {
+      class: confidenceClass,
+      label: confidenceLabel,
+      percent: Math.round(confidencePercent),
+      tooltip: tooltip
+    };
+  }
+  
+  /**
+   * Build confidence tooltip explanation
+   * @param {string} level - Confidence level
+   * @param {number} percent - Confidence percentage
+   * @param {Object} layer - Layer data
+   * @returns {string} Tooltip text
+   */
+  buildConfidenceTooltip(level, percent, layer) {
+    const reasons = [];
+    
+    // Base explanation
+    if (level === 'high') {
+      reasons.push('✓ Clear material identification');
+      reasons.push('✓ Precise depth boundaries');
+    } else if (level === 'medium') {
+      reasons.push('⚠ Material partially identified');
+      reasons.push('⚠ Depth boundaries estimated');
+    } else {
+      reasons.push('⚠ Material unclear');
+      reasons.push('⚠ Depth boundaries uncertain');
+    }
+    
+    // Add layer-specific context
+    if (layer.user_edited) {
+      reasons.push('✓ User verified');
+    }
+    
+    return `Confidence: ${percent}%\n${reasons.join('\n')}`;
   }
   
   getLayerColor(material) {
