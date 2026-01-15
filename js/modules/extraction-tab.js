@@ -656,32 +656,166 @@ class ExtractionTabManager {
         </div>
       </div>
       
-      <div class="extraction-preview">
-        <div class="preview-header">
-          <div class="preview-title">Extracted Strata Layers</div>
-          <div class="preview-actions">
-            <button class="btn-tool" onclick="extractionTab.exportResults()" title="Export">📤</button>
-            <button class="btn-tool" onclick="extractionTab.editResults()" title="Edit">✏️</button>
+      <div class="extraction-results-grid">
+        <div class="extraction-results-main">
+          <div class="preview-header">
+            <div class="preview-title">Extracted Strata Layers</div>
+            <div class="preview-actions">
+              <button class="btn-tool" onclick="extractionTab.exportResults()" title="Export">📤</button>
+              <button class="btn-tool" onclick="extractionTab.editResults()" title="Edit">✏️</button>
+            </div>
+          </div>
+          <div class="layer-list">
+            ${this.renderLayerList(results.allLayers)}
           </div>
         </div>
-        <div class="layer-list">
-          ${this.renderLayerList(results.allLayers)}
+        
+        <div class="extraction-results-sidebar">
+          <div class="validation-panel">
+            <div class="panel-section">
+              <h4 class="panel-section-title">
+                <span class="panel-icon">🎯</span>
+                Confidence Analysis
+              </h4>
+              <div class="confidence-breakdown">
+                ${this.renderConfidenceBreakdown(results.allLayers)}
+              </div>
+            </div>
+            
+            ${results.warnings.length > 0 ? `
+              <div class="panel-section">
+                <h4 class="panel-section-title">
+                  <span class="panel-icon">⚠️</span>
+                  Warnings (${results.warnings.length})
+                </h4>
+                <ul class="validation-list warnings">
+                  ${results.warnings.slice(0, 5).map(w => `<li>${w}</li>`).join('')}
+                  ${results.warnings.length > 5 ? `<li class="more-items">...and ${results.warnings.length - 5} more</li>` : ''}
+                </ul>
+              </div>
+            ` : ''}
+            
+            ${results.errors.length > 0 ? `
+              <div class="panel-section">
+                <h4 class="panel-section-title">
+                  <span class="panel-icon">❌</span>
+                  Errors (${results.errors.length})
+                </h4>
+                <ul class="validation-list errors">
+                  ${results.errors.slice(0, 5).map(e => `<li>${e}</li>`).join('')}
+                  ${results.errors.length > 5 ? `<li class="more-items">...and ${results.errors.length - 5} more</li>` : ''}
+                </ul>
+              </div>
+            ` : ''}
+            
+            <div class="panel-section">
+              <h4 class="panel-section-title">
+                <span class="panel-icon">📋</span>
+                Extraction Summary
+              </h4>
+              <div class="summary-stats">
+                <div class="summary-stat">
+                  <span class="stat-label">Total Depth:</span>
+                  <span class="stat-value">${this.getTotalDepth(results.allLayers)} ft</span>
+                </div>
+                <div class="summary-stat">
+                  <span class="stat-label">Avg Layer Thickness:</span>
+                  <span class="stat-value">${this.getAverageThickness(results.allLayers)} ft</span>
+                </div>
+                <div class="summary-stat">
+                  <span class="stat-label">Materials Found:</span>
+                  <span class="stat-value">${this.getUniqueMaterials(results.allLayers)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="result-actions">
-          <button class="btn-secondary" onclick="extractionTab.reviewResults()">
-            👁️ Review & Edit
-          </button>
-          <button class="btn-primary" onclick="extractionTab.saveResults()">
-            ✅ Save to Project
-          </button>
-          <button class="btn-secondary" onclick="extractionTab.startOver()">
-            🔄 Start Over
-          </button>
-        </div>
+      </div>
+      
+      <div class="result-actions">
+        <button class="btn-secondary" onclick="extractionTab.reviewResults()">
+          👁️ Review & Edit
+        </button>
+        <button class="btn-primary" onclick="extractionTab.saveResults()">
+          ✅ Save to Project
+        </button>
+        <button class="btn-secondary" onclick="extractionTab.startOver()">
+          🔄 Start Over
+        </button>
       </div>
     `;
     
     this.elements.results.innerHTML = html;
+  }
+  
+  /**
+   * Render confidence breakdown visualization
+   * @param {Array} layers - Extracted layers
+   * @returns {string} HTML for confidence breakdown
+   */
+  renderConfidenceBreakdown(layers) {
+    const high = layers.filter(l => l.confidence === 'high').length;
+    const medium = layers.filter(l => l.confidence === 'medium').length;
+    const low = layers.filter(l => l.confidence === 'low').length;
+    const total = layers.length;
+    
+    const highPercent = total > 0 ? Math.round((high / total) * 100) : 0;
+    const mediumPercent = total > 0 ? Math.round((medium / total) * 100) : 0;
+    const lowPercent = total > 0 ? Math.round((low / total) * 100) : 0;
+    
+    return `
+      <div class="confidence-bar">
+        ${high > 0 ? `<div class="confidence-segment high" style="width: ${highPercent}%" title="${high} high confidence layers"></div>` : ''}
+        ${medium > 0 ? `<div class="confidence-segment medium" style="width: ${mediumPercent}%" title="${medium} medium confidence layers"></div>` : ''}
+        ${low > 0 ? `<div class="confidence-segment low" style="width: ${lowPercent}%" title="${low} low confidence layers"></div>` : ''}
+      </div>
+      <div class="confidence-legend">
+        <div class="legend-item">
+          <span class="legend-color high"></span>
+          <span class="legend-label">High: ${high} (${highPercent}%)</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color medium"></span>
+          <span class="legend-label">Medium: ${medium} (${mediumPercent}%)</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color low"></span>
+          <span class="legend-label">Low: ${low} (${lowPercent}%)</span>
+        </div>
+      </div>
+    `;
+  }
+  
+  /**
+   * Get total depth from layers
+   * @param {Array} layers - Extracted layers
+   * @returns {string} Total depth formatted
+   */
+  getTotalDepth(layers) {
+    if (layers.length === 0) return '0';
+    const maxDepth = Math.max(...layers.map(l => l.end_depth || 0));
+    return maxDepth.toFixed(1);
+  }
+  
+  /**
+   * Get average layer thickness
+   * @param {Array} layers - Extracted layers
+   * @returns {string} Average thickness formatted
+   */
+  getAverageThickness(layers) {
+    if (layers.length === 0) return '0';
+    const totalThickness = layers.reduce((sum, l) => sum + (l.end_depth - l.start_depth), 0);
+    return (totalThickness / layers.length).toFixed(1);
+  }
+  
+  /**
+   * Get count of unique materials
+   * @param {Array} layers - Extracted layers
+   * @returns {number} Count of unique materials
+   */
+  getUniqueMaterials(layers) {
+    const materials = new Set(layers.map(l => l.material.toLowerCase()));
+    return materials.size;
   }
   
   renderLayerList(layers) {
