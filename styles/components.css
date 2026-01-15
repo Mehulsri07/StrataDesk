@@ -5066,6 +5066,79 @@ roject Details Modal Styles */
   border-left: 3px solid var(--success);
 }
 
+/* Inline Editing Styles */
+.material-text.editing {
+  background: var(--bg);
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  outline: none;
+  min-width: 120px;
+}
+
+.material-text.editing:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+}
+
+.inline-depth-input {
+  width: 80px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-sm);
+  font-size: inherit;
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+}
+
+.inline-depth-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+}
+
+/* Edit Button Styles */
+.edit-btn {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+}
+
+.layer-table tr:hover .edit-btn {
+  opacity: 0.6;
+}
+
+.edit-btn:hover {
+  opacity: 1 !important;
+  transform: scale(1.1);
+}
+
+/* Action Buttons */
+.action-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-fast);
+}
+
+.action-btn:hover:not(:disabled) {
+  background: var(--bg-secondary);
+  border-color: var(--primary);
+}
+
+.action-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
 /* Table Cell Styles */
 .material-cell {
   position: relative;

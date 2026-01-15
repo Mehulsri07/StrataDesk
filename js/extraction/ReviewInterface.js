@@ -696,7 +696,7 @@ class ReviewInterface {
   // Event handlers
 
   /**
-   * Handle material editing
+   * Handle material editing with inline contenteditable
    */
   handleEditMaterial(event) {
     const row = event.target.closest('tr');
@@ -704,34 +704,160 @@ class ReviewInterface {
     const materialCell = row.querySelector('.material-text');
     const currentMaterial = materialCell.textContent;
     
-    const newMaterial = prompt('Enter new material name:', currentMaterial);
-    if (newMaterial && newMaterial !== currentMaterial) {
-      try {
-        this.updateLayerMaterial(layerIndex, newMaterial);
-      } catch (error) {
-        alert('Error updating material: ' + error.message);
+    // Make cell editable
+    materialCell.contentEditable = true;
+    materialCell.focus();
+    
+    // Select all text
+    const range = document.createRange();
+    range.selectNodeContents(materialCell);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    
+    // Add editing class
+    materialCell.classList.add('editing');
+    
+    // Handle blur (save)
+    const handleBlur = () => {
+      const newMaterial = materialCell.textContent.trim();
+      materialCell.contentEditable = false;
+      materialCell.classList.remove('editing');
+      
+      if (newMaterial && newMaterial !== currentMaterial) {
+        try {
+          this.updateLayerMaterial(layerIndex, newMaterial);
+        } catch (error) {
+          // Revert on error
+          materialCell.textContent = currentMaterial;
+          this.utils.showToast('Error: ' + error.message, 'error');
+        }
+      } else {
+        // Revert if empty or unchanged
+        materialCell.textContent = currentMaterial;
       }
-    }
+      
+      materialCell.removeEventListener('blur', handleBlur);
+      materialCell.removeEventListener('keydown', handleKeydown);
+    };
+    
+    // Handle keyboard
+    const handleKeydown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        materialCell.blur();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        materialCell.textContent = currentMaterial;
+        materialCell.blur();
+      }
+    };
+    
+    materialCell.addEventListener('blur', handleBlur);
+    materialCell.addEventListener('keydown', handleKeydown);
   }
 
   /**
-   * Handle depth editing
+   * Handle depth editing with inline inputs
    */
   handleEditDepths(event) {
     const row = event.target.closest('tr');
     const layerIndex = parseInt(row.dataset.layerIndex);
     const layer = this.editedLayers[layerIndex];
     
-    const startDepth = prompt('Enter start depth:', layer.start_depth);
-    const endDepth = prompt('Enter end depth:', layer.end_depth);
+    const startDepthCell = row.querySelector('.depth-cell:nth-of-type(1) .depth-text');
+    const endDepthCell = row.querySelector('.depth-cell:nth-of-type(2) .depth-text');
     
-    if (startDepth !== null && endDepth !== null) {
-      try {
-        this.updateLayerDepths(layerIndex, parseFloat(startDepth), parseFloat(endDepth));
-      } catch (error) {
-        alert('Error updating depths: ' + error.message);
+    // Create inline inputs
+    const startInput = this.createDepthInput(layer.start_depth);
+    const endInput = this.createDepthInput(layer.end_depth);
+    
+    // Replace text with inputs
+    const originalStartText = startDepthCell.textContent;
+    const originalEndText = endDepthCell.textContent;
+    
+    startDepthCell.innerHTML = '';
+    startDepthCell.appendChild(startInput);
+    endDepthCell.innerHTML = '';
+    endDepthCell.appendChild(endInput);
+    
+    startInput.focus();
+    startInput.select();
+    
+    // Handle save
+    const saveDepths = () => {
+      const startDepth = parseFloat(startInput.value);
+      const endDepth = parseFloat(endInput.value);
+      
+      if (!isNaN(startDepth) && !isNaN(endDepth)) {
+        try {
+          this.updateLayerDepths(layerIndex, startDepth, endDepth);
+        } catch (error) {
+          // Revert on error
+          startDepthCell.textContent = originalStartText;
+          endDepthCell.textContent = originalEndText;
+          this.utils.showToast('Error: ' + error.message, 'error');
+        }
+      } else {
+        // Revert if invalid
+        startDepthCell.textContent = originalStartText;
+        endDepthCell.textContent = originalEndText;
+        this.utils.showToast('Invalid depth values', 'error');
       }
-    }
+    };
+    
+    // Handle blur
+    const handleBlur = (e) => {
+      // Only save if blur is not moving to the other input
+      setTimeout(() => {
+        if (document.activeElement !== startInput && document.activeElement !== endInput) {
+          saveDepths();
+        }
+      }, 100);
+    };
+    
+    // Handle keyboard
+    const handleKeydown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveDepths();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        startDepthCell.textContent = originalStartText;
+        endDepthCell.textContent = originalEndText;
+      } else if (e.key === 'Tab' && e.target === startInput) {
+        e.preventDefault();
+        endInput.focus();
+        endInput.select();
+      }
+    };
+    
+    startInput.addEventListener('blur', handleBlur);
+    endInput.addEventListener('blur', handleBlur);
+    startInput.addEventListener('keydown', handleKeydown);
+    endInput.addEventListener('keydown', handleKeydown);
+  }
+  
+  /**
+   * Create inline depth input
+   * @param {number} value - Initial value
+   * @returns {HTMLInputElement} Input element
+   */
+  createDepthInput(value) {
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.step = '0.1';
+    input.value = value;
+    input.className = 'inline-depth-input';
+    input.style.cssText = `
+      width: 80px;
+      padding: 4px 8px;
+      border: 2px solid var(--primary);
+      border-radius: 4px;
+      font-size: inherit;
+      font-family: inherit;
+    `;
+    return input;
   }
 
   /**
