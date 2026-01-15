@@ -16,12 +16,17 @@ let mainWindow;
 let splashWindow;
 const isDev = process.argv.includes('--dev');
 
-// Enable live reload for development
+// Enable live reload for development (optional)
 if (isDev) {
-  require('electron-reload')(__dirname, {
-    electron: path.join(__dirname, 'node_modules', '.bin', 'electron'),
-    hardResetMethod: 'exit'
-  });
+  try {
+    require('electron-reload')(__dirname, {
+      electron: path.join(__dirname, 'node_modules', '.bin', 'electron'),
+      hardResetMethod: 'exit'
+    });
+    console.log('✅ Electron reload enabled');
+  } catch (error) {
+    console.log('⚠️ electron-reload not installed (optional for development)');
+  }
 }
 
 // App event handlers
@@ -139,13 +144,21 @@ function createMainWindow() {
 
 // Get platform-specific icon
 function getIconPath() {
-  if (process.platform === 'win32') {
-    return path.join(__dirname, 'icons', 'icon.ico');
-  } else if (process.platform === 'darwin') {
-    return path.join(__dirname, 'icons', 'icon.icns');
-  } else {
-    return path.join(__dirname, 'icons', 'icon.png');
+  const iconPaths = {
+    win32: path.join(__dirname, 'icons', 'icon.ico'),
+    darwin: path.join(__dirname, 'icons', 'icon.icns'),
+    default: path.join(__dirname, 'icons', 'icon.png')
+  };
+  
+  const iconPath = iconPaths[process.platform] || iconPaths.default;
+  
+  // Fallback to PNG if platform-specific icon doesn't exist
+  if (!fs.existsSync(iconPath)) {
+    console.log(`Icon not found: ${iconPath}, using default PNG`);
+    return iconPaths.default;
   }
+  
+  return iconPath;
 }
 
 // Create application menu
