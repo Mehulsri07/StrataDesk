@@ -109,7 +109,7 @@
 
     <!-- Main Application -->
     <div id="appPanel" class="main-app hidden">
-      <!-- Top Navigation Bar -->
+      <!-- Simplified Top Navigation Bar -->
       <div class="app-navbar">
         <div class="navbar-left">
           <div class="user-profile">
@@ -121,500 +121,174 @@
           </div>
         </div>
         
-        <div class="navbar-center">
-          <div class="quick-actions">
-            <button id="newProjectBtn" class="quick-btn" title="New Project" onclick="console.log('New project clicked'); document.getElementById('newProjectName')?.focus();">
-              <span>📁</span>
-              <span>New Project</span>
-            </button>
-            <button id="addBoringBtn" class="quick-btn" title="Add Boring" onclick="console.log('Add boring clicked'); document.getElementById('boreId')?.focus();">
-              <span>📤</span>
-              <span>Add Data</span>
-            </button>
-            <button id="exportBtn" class="quick-btn" title="Export Data" onclick="console.log('Export clicked'); if(window.uiManager) window.uiManager.handleExportProject();">
-              <span>📦</span>
-              <span>Export</span>
-            </button>
-          </div>
-        </div>
-        
         <div class="navbar-right">
-          <button id="darkModeToggle" class="theme-toggle" title="Toggle Dark Mode">
-            <span class="theme-icon">🌙</span>
-          </button>
-          <button id="settingsBtn" class="navbar-btn" title="Settings" onclick="console.log('Settings clicked'); if(window.uiManager) window.uiManager.showSettingsModal();">
-            <span>⚙️</span>
-          </button>
-          <button id="exportAll" class="btn-primary export-btn" onclick="console.log('Export all clicked'); if(window.uiManager) window.uiManager.handleExportAll();">📦 Backup All</button>
+          <button id="exportAll" class="btn-secondary export-btn" onclick="console.log('Export all clicked'); if(window.uiManager) window.uiManager.handleExportAll();">📦 Backup All</button>
           <button id="logoutBtn" class="btn-logout" onclick="console.log('Logout clicked'); if(window.uiManager) window.uiManager.handleLogout();">Sign Out</button>
         </div>
       </div>
 
       <!-- Main Content Area -->
       <div class="app-content">
-        <!-- Sidebar -->
-        <div class="app-sidebar">
-          <!-- Search Panel -->
-          <div class="sidebar-panel">
-            <div class="panel-header">
-              <h3>🔍 Search</h3>
-            </div>
-            <div class="panel-content">
-              <div class="search-box">
-                <input id="searchQ" placeholder="Search files, bore IDs, tags..." class="search-input">
-                <button id="searchBtn" class="search-btn">🔍</button>
+        <!-- Simplified Main View: Map + Bottom Panel -->
+        <div class="main-view">
+          <!-- Map Container (Full Screen) -->
+          <div class="map-view">
+            <div class="map-header">
+              <h2>StrataDesk</h2>
+              <div class="map-actions">
+                <button id="addBoringBtn" class="btn-primary add-boring-btn">
+                  <span>➕</span>
+                  <span>Add Boring</span>
+                </button>
+                <button id="viewAllBtn" class="btn-secondary view-all-btn">
+                  <span>📋</span>
+                  <span>View All</span>
+                </button>
+                <button id="settingsBtn" class="btn-icon" title="Settings">
+                  <span>⚙️</span>
+                </button>
+                <button id="darkModeToggle" class="btn-icon theme-toggle" title="Toggle Dark Mode">
+                  <span class="theme-icon">🌙</span>
+                </button>
               </div>
-              <button id="clearSearch" class="btn-clear">Clear</button>
-              <div id="searchResults" class="search-results"></div>
             </div>
+            <div id="map" class="map-container"></div>
           </div>
 
-          <!-- Projects Panel -->
-          <div class="sidebar-panel">
+          <!-- Bottom Panel: Recent Borings -->
+          <div class="bottom-panel">
             <div class="panel-header">
-              <h3>📁 Projects</h3>
-              <button id="createProject" class="btn-add" title="Create New Project">+</button>
+              <h3>Recent Borings</h3>
+              <div class="panel-actions">
+                <button id="searchToggle" class="btn-icon" title="Search">🔍</button>
+                <button id="refreshBtn" class="btn-icon" title="Refresh">🔄</button>
+              </div>
             </div>
-            <div class="panel-content">
-              <input id="newProjectName" placeholder="Project name..." class="project-input">
-              <div id="projectList" class="project-list"></div>
+            
+            <!-- Search Bar (Hidden by default) -->
+            <div id="searchBar" class="search-bar hidden">
+              <input id="searchInput" type="text" placeholder="Search bore IDs, locations, tags..." class="search-input">
+              <button id="clearSearchBtn" class="btn-clear">✕</button>
             </div>
-          </div>
-
-          <!-- Data Entry Panel -->
-          <div class="sidebar-panel data-entry-panel">
-            <div class="panel-header">
-              <h3>📤 Add Boring Data</h3>
-            </div>
-            <div class="panel-content">
-              <!-- Project Selection -->
-              <div class="form-section">
-                <label class="form-label">Project</label>
-                <select id="assignProject" class="form-select"></select>
-              </div>
-
-              <!-- Location -->
-              <div class="form-section">
-                <label class="form-label">📍 Location</label>
-                <button id="clickMapBtn" class="btn-map">🗺️ Click on Map</button>
-                <div class="address-search-container">
-                  <input id="addressSearch" placeholder="Search address..." class="form-input">
-                  <div id="addressDropdown" class="address-dropdown"></div>
+            
+            <!-- Recent Borings List -->
+            <div id="recentBorings" class="recent-borings">
+              <div class="boring-item">
+                <div class="boring-info">
+                  <div class="boring-id">TW-21</div>
+                  <div class="boring-location">25.12, 82.54</div>
+                  <div class="boring-date">Jan 18, 2026</div>
                 </div>
-                <input id="latlng" placeholder="Coordinates: 25.12,82.54" class="form-input">
-                <div id="locationStatus" class="location-status"></div>
-              </div>
-
-              <!-- Basic Info -->
-              <div class="form-section">
-                <div class="form-row">
-                  <div class="form-col">
-                    <label class="form-label">Date</label>
-                    <input id="fileDate" type="date" class="form-input">
-                  </div>
-                  <div class="form-col">
-                    <label class="form-label">Bore ID</label>
-                    <input id="boreId" placeholder="TW-21" class="form-input">
-                  </div>
+                <div class="boring-layers">5 layers</div>
+                <div class="boring-actions">
+                  <button class="btn-icon" title="View on map">📍</button>
+                  <button class="btn-icon" title="Edit">✏️</button>
                 </div>
               </div>
-
-              <div class="form-section">
-                <label class="form-label">💧 Water Level (ft below ground)</label>
-                <input id="waterLevel" type="number" step="0.1" placeholder="41.0" class="form-input">
-              </div>
-
-              <!-- Files -->
-              <div class="form-section">
-                <label class="form-label">📁 Files</label>
-                <div class="file-upload-area">
-                  <input id="fileInput" type="file" multiple accept=".pdf,.xlsx,.xls,.jpg,.jpeg,.png,.gif" class="file-input">
-                  <div class="file-upload-hint">
-                    <span class="upload-icon">📁</span>
-                    <span class="upload-text">Choose files or drag & drop</span>
-                    <span class="upload-formats">Supports: PDF, Excel (.xlsx, .xls), Images</span>
-                  </div>
+              
+              <div class="boring-item">
+                <div class="boring-info">
+                  <div class="boring-id">TW-22</div>
+                  <div class="boring-location">25.15, 82.60</div>
+                  <div class="boring-date">Jan 17, 2026</div>
                 </div>
-                
-                <!-- Extraction Options -->
-                <div id="extractionOptions" class="extraction-options hidden">
-                  <div class="extraction-header">
-                    <span class="extraction-icon">🔍</span>
-                    <span class="extraction-title">Strata Chart Extraction Available</span>
-                  </div>
-                  <div class="extraction-controls">
-                    <label class="extraction-checkbox">
-                      <input type="checkbox" id="enableExtraction" checked>
-                      <span class="checkmark"></span>
-                      <span class="checkbox-label">Quick extract and add to current boring</span>
-                    </label>
-                    <div class="extraction-actions">
-                      <button class="btn-secondary" onclick="switchMainTab('extraction')">
-                        🔍 Advanced Extraction
-                      </button>
-                      <button class="btn-primary" onclick="quickExtraction()">
-                        ⚡ Quick Extract
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                
-                <div id="selectedFiles" class="selected-files">No files selected</div>
-                
-                <!-- Enhanced Extraction Progress -->
-                <div id="extractionProgress" class="extraction-progress hidden">
-                  <div class="progress-header">
-                    <span class="progress-icon">⚙️</span>
-                    <span class="progress-title">Processing Strata Chart</span>
-                    <span class="progress-cancel" onclick="cancelExtraction()">✕</span>
-                  </div>
-                  <div class="progress-bar">
-                    <div class="progress-fill"></div>
-                  </div>
-                  <div class="progress-details">
-                    <div class="progress-text">Initializing extraction...</div>
-                    <div class="progress-percentage">0%</div>
-                  </div>
-                  <div class="progress-steps">
-                    <div class="step" id="step-reading">
-                      <span class="step-icon">📖</span>
-                      <span class="step-text">Reading file</span>
-                      <span class="step-status">⏳</span>
-                    </div>
-                    <div class="step" id="step-extracting">
-                      <span class="step-icon">🔍</span>
-                      <span class="step-text">Extracting data</span>
-                      <span class="step-status">⏳</span>
-                    </div>
-                    <div class="step" id="step-validating">
-                      <span class="step-icon">✅</span>
-                      <span class="step-text">Validating</span>
-                      <span class="step-status">⏳</span>
-                    </div>
-                    <div class="step" id="step-complete">
-                      <span class="step-icon">🎉</span>
-                      <span class="step-text">Complete</span>
-                      <span class="step-status">⏳</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- Extraction Results -->
-                <div id="extractionResults" class="extraction-results hidden">
-                  <div class="results-header">
-                    <span class="results-icon">📊</span>
-                    <span class="results-title">Extraction Results</span>
-                  </div>
-                  <div class="results-content">
-                    <div class="results-summary">
-                      <div class="summary-item">
-                        <span class="summary-label">Layers Found:</span>
-                        <span class="summary-value" id="layersFound">0</span>
-                      </div>
-                      <div class="summary-item">
-                        <span class="summary-label">Confidence:</span>
-                        <span class="summary-value" id="overallConfidence">0%</span>
-                      </div>
-                      <div class="summary-item">
-                        <span class="summary-label">Status:</span>
-                        <span class="summary-value" id="extractionStatus">Processing</span>
-                      </div>
-                    </div>
-                    <div class="results-actions">
-                      <button class="btn-secondary" id="reviewExtractionBtn" onclick="reviewExtraction()">
-                        👁️ Review Data
-                      </button>
-                      <button class="btn-primary" id="acceptExtractionBtn" onclick="acceptExtraction()">
-                        ✅ Accept & Save
-                      </button>
-                      <button class="btn-danger" id="rejectExtractionBtn" onclick="rejectExtraction()">
-                        ❌ Manual Entry
-                      </button>
-                    </div>
-                  </div>
-                  <div class="results-details hidden" id="extractionDetails">
-                    <div class="details-header">
-                      <span class="details-title">Extraction Details</span>
-                      <button class="details-toggle" onclick="toggleExtractionDetails()">▼</button>
-                    </div>
-                    <div class="details-content">
-                      <div class="detail-section">
-                        <h4>Warnings:</h4>
-                        <ul id="extractionWarnings"></ul>
-                      </div>
-                      <div class="detail-section">
-                        <h4>Errors:</h4>
-                        <ul id="extractionErrors"></ul>
-                      </div>
-                      <div class="detail-section">
-                        <h4>Processing Time:</h4>
-                        <span id="processingTime">0ms</span>
-                      </div>
-                    </div>
-                  </div>
+                <div class="boring-layers">3 layers</div>
+                <div class="boring-actions">
+                  <button class="btn-icon" title="View on map">📍</button>
+                  <button class="btn-icon" title="Edit">✏️</button>
                 </div>
               </div>
-
-              <!-- Optional fields -->
-              <details class="form-section">
-                <summary class="form-toggle">⚙️ Additional Details</summary>
-                <div class="form-content">
-                  <input id="tags" placeholder="Tags: monitoring, clay, water-table" class="form-input">
-                  <textarea id="notes" rows="3" placeholder="Notes..." class="form-textarea"></textarea>
-                  
-                  <!-- Strata Information -->
-                  <div class="strata-section">
-                    <label class="form-label">🗂️ Strata Layers (Optional)</label>
-                    <div id="strataLayers" class="strata-layers">
-                      <div class="strata-layer-input">
-                        <select class="strata-type">
-                          <option value="">Layer type...</option>
-                          <option value="topsoil">Topsoil</option>
-                          <option value="clay">Clay</option>
-                          <option value="sand">Sand</option>
-                          <option value="gravel">Gravel</option>
-                          <option value="silt">Silt</option>
-                          <option value="sandstone">Sandstone</option>
-                          <option value="limestone">Limestone</option>
-                          <option value="shale">Shale</option>
-                          <option value="rock">Rock</option>
-                          <option value="bedrock">Bedrock</option>
-                        </select>
-                        <input type="number" class="strata-thickness" placeholder="Thickness (ft)" step="0.1" min="0">
-                        <button type="button" class="btn-tool add-layer" onclick="addStrataLayer()">+</button>
-                      </div>
-                    </div>
-                    <textarea id="strataSummary" rows="2" placeholder="Strata summary..." class="form-textarea"></textarea>
-                  </div>
+              
+              <div class="boring-item">
+                <div class="boring-info">
+                  <div class="boring-id">TW-23</div>
+                  <div class="boring-location">25.10, 82.50</div>
+                  <div class="boring-date">Jan 16, 2026</div>
                 </div>
-              </details>
-
-              <!-- Action Buttons -->
-              <div class="form-actions">
-                <button id="attachBtn" class="btn-primary save-btn">✅ Save Boring</button>
-                <div class="form-tools">
-                  <button id="repeatLastBtn" class="btn-tool" title="Repeat last entry">🔄</button>
-                  <button id="clearFormBtn" class="btn-tool" title="Clear form">🗑️</button>
+                <div class="boring-layers">4 layers</div>
+                <div class="boring-actions">
+                  <button class="btn-icon" title="View on map">📍</button>
+                  <button class="btn-icon" title="Edit">✏️</button>
                 </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Main Content -->
-        <div class="app-main">
-          <!-- Main Tab Navigation -->
-          <div class="main-tabs">
-            <button class="tab-btn active" data-tab="map" onclick="switchMainTab('map')">
-              <span>🗺️</span>
-              <span>Map View</span>
-            </button>
-            <button class="tab-btn" data-tab="extraction" onclick="switchMainTab('extraction')">
-              <span>🔍</span>
-              <span>Strata Extraction</span>
-            </button>
-            <button class="tab-btn" data-tab="files" onclick="switchMainTab('files')">
-              <span>📁</span>
-              <span>Project Files</span>
-            </button>
+      <!-- Add Boring Modal -->
+      <div id="addBoringModal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>Add New Boring</h2>
+            <button class="modal-close" onclick="closeAddBoringModal()">✕</button>
           </div>
-
-          <!-- Map Panel -->
-          <div class="content-panel map-panel tab-content active" data-tab="map">
-            <div class="panel-header">
-              <h3>🗺️ Map View</h3>
-              <div class="panel-tools">
-                <button class="btn-tool" title="Fullscreen">⛶</button>
-                <button class="btn-tool" title="Refresh">🔄</button>
+          <div class="modal-body">
+            <div class="add-boring-options">
+              <div class="option-card" onclick="selectAddOption('upload')">
+                <div class="option-icon">📄</div>
+                <div class="option-title">Upload Strata Chart</div>
+                <div class="option-description">PDF or Excel with layers<br>→ Auto-extract layers</div>
               </div>
-            </div>
-            <div class="panel-content">
-              <div class="map-hint">Click "Click on Map" button, then click on the map to set location</div>
-              <div id="map" class="map-container"></div>
-            </div>
-          </div>
-
-          <!-- Strata Extraction Panel -->
-          <div class="content-panel extraction-panel tab-content" data-tab="extraction">
-            <div class="panel-header">
-              <h3>🔍 Strata Chart Extraction</h3>
-              <div class="panel-tools">
-                <button class="btn-tool" title="Help" onclick="showExtractionHelp()">❓</button>
-                <button class="btn-tool" title="Settings" onclick="showExtractionSettings()">⚙️</button>
+              
+              <div class="option-card" onclick="selectAddOption('manual')">
+                <div class="option-icon">✍️</div>
+                <div class="option-title">Manual Entry</div>
+                <div class="option-description">Enter layer data by hand</div>
               </div>
-            </div>
-            <div class="panel-content">
-              <!-- Extraction Workflow -->
-              <div class="extraction-workflow">
-                <!-- Step 1: File Upload -->
-                <div class="workflow-step active" id="step-upload">
-                  <div class="step-header">
-                    <div class="step-number">1</div>
-                    <div class="step-title">Upload Files</div>
-                    <div class="step-status">📁</div>
-                  </div>
-                  <div class="step-content">
-                    <div class="upload-zone" id="extractionUploadZone">
-                      <input id="extractionFileInput" type="file" multiple accept=".pdf,.xlsx,.xls" class="file-input">
-                      <div class="upload-zone-content">
-                        <div class="upload-icon">📁</div>
-                        <div class="upload-text">
-                          <h4>Drop strata chart files here</h4>
-                          <p>or click to browse</p>
-                        </div>
-                        <div class="upload-formats">
-                          <span class="format-badge">PDF</span>
-                          <span class="format-badge">Excel (.xlsx)</span>
-                          <span class="format-badge">Excel (.xls)</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div id="extractionFileList" class="extraction-file-list"></div>
-                  </div>
-                </div>
-
-                <!-- Step 2: Configure Extraction -->
-                <div class="workflow-step" id="step-configure">
-                  <div class="step-header">
-                    <div class="step-number">2</div>
-                    <div class="step-title">Configure Extraction</div>
-                    <div class="step-status">⚙️</div>
-                  </div>
-                  <div class="step-content">
-                    <div class="extraction-config">
-                      <div class="config-section">
-                        <label class="config-label">Confidence Threshold</label>
-                        <div class="config-control">
-                          <select id="extractionConfidenceThreshold" class="config-select">
-                            <option value="0.3">Low (30%) - Extract more data, may need review</option>
-                            <option value="0.5" selected>Medium (50%) - Balanced accuracy</option>
-                            <option value="0.7">High (70%) - Only high-confidence data</option>
-                            <option value="0.9">Very High (90%) - Maximum accuracy</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div class="config-section">
-                        <label class="config-label">Depth Units</label>
-                        <div class="config-control">
-                          <select id="extractionDepthUnits" class="config-select">
-                            <option value="feet" selected>Feet</option>
-                            <option value="meters">Meters</option>
-                            <option value="auto">Auto-detect</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div class="config-section">
-                        <label class="config-label">Processing Options</label>
-                        <div class="config-options">
-                          <label class="config-checkbox">
-                            <input type="checkbox" id="enableFallback" checked>
-                            <span class="checkmark"></span>
-                            <span>Enable fallback processing for unclear data</span>
-                          </label>
-                          <label class="config-checkbox">
-                            <input type="checkbox" id="autoReview" checked>
-                            <span class="checkmark"></span>
-                            <span>Automatically open review interface</span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="config-actions">
-                      <button id="startExtractionBtn" class="btn-primary" onclick="startMainExtraction()">
-                        🔍 Start Extraction
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Step 3: Processing -->
-                <div class="workflow-step" id="step-processing">
-                  <div class="step-header">
-                    <div class="step-number">3</div>
-                    <div class="step-title">Processing</div>
-                    <div class="step-status">⚙️</div>
-                  </div>
-                  <div class="step-content">
-                    <div id="mainExtractionProgress" class="main-extraction-progress">
-                      <div class="progress-overview">
-                        <div class="progress-circle">
-                          <div class="progress-circle-inner">
-                            <span id="mainProgressPercent">0%</span>
-                          </div>
-                        </div>
-                        <div class="progress-info">
-                          <div class="progress-title" id="mainProgressTitle">Initializing...</div>
-                          <div class="progress-subtitle" id="mainProgressSubtitle">Preparing extraction engine</div>
-                        </div>
-                      </div>
-                      <div class="progress-steps">
-                        <div class="progress-step" id="main-step-reading">
-                          <span class="step-icon">📖</span>
-                          <span class="step-text">Reading Files</span>
-                          <span class="step-status">⏳</span>
-                        </div>
-                        <div class="progress-step" id="main-step-parsing">
-                          <span class="step-icon">🔍</span>
-                          <span class="step-text">Parsing Data</span>
-                          <span class="step-status">⏳</span>
-                        </div>
-                        <div class="progress-step" id="main-step-extracting">
-                          <span class="step-icon">⚙️</span>
-                          <span class="step-text">Extracting Layers</span>
-                          <span class="step-status">⏳</span>
-                        </div>
-                        <div class="progress-step" id="main-step-validating">
-                          <span class="step-icon">✅</span>
-                          <span class="step-text">Validating</span>
-                          <span class="step-status">⏳</span>
-                        </div>
-                      </div>
-                      <div class="progress-actions">
-                        <button class="btn-secondary" onclick="cancelMainExtraction()">Cancel</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Step 4: Results -->
-                <div class="workflow-step" id="step-results">
-                  <div class="step-header">
-                    <div class="step-number">4</div>
-                    <div class="step-title">Review Results</div>
-                    <div class="step-status">📊</div>
-                  </div>
-                  <div class="step-content">
-                    <div id="mainExtractionResults" class="main-extraction-results">
-                      <!-- Results will be populated here -->
-                    </div>
-                  </div>
-                </div>
+              
+              <div class="option-card" onclick="selectAddOption('files')">
+                <div class="option-icon">📁</div>
+                <div class="option-title">Attach Files Only</div>
+                <div class="option-description">No layer extraction</div>
               </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          <!-- Files Panel -->
-          <div class="content-panel files-panel tab-content" data-tab="files">
-            <div class="panel-header">
-              <h3>📁 Project Files</h3>
-              <div class="panel-tools">
-                <button id="exportProjectBtn" class="btn-export">📦 Export</button>
-                <button id="deleteFilesBtn" class="btn-delete">🗑️ Delete</button>
-              </div>
-            </div>
-            <div class="panel-content">
-              <div id="fileList" class="file-list"></div>
-              <div id="statSummary" class="file-stats">0 files</div>
-            </div>
+      <!-- View All Modal -->
+      <div id="viewAllModal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content large">
+          <div class="modal-header">
+            <h2>All Borings</h2>
+            <button class="modal-close" onclick="closeViewAllModal()">✕</button>
           </div>
-
-          <!-- Preview Panel -->
-          <div class="content-panel preview-panel">
-            <div class="panel-header">
-              <h3>👁️ Preview</h3>
-            </div>
-            <div class="panel-content">
-              <div id="previewArea" class="preview-area">Select a file to preview</div>
+          <div class="modal-body">
+            <div class="view-all-content">
+              <div class="view-all-filters">
+                <input type="text" placeholder="Search..." class="filter-input">
+                <select class="filter-select">
+                  <option>All Projects</option>
+                  <option>Project 1</option>
+                  <option>Project 2</option>
+                </select>
+                <select class="filter-select">
+                  <option>All Dates</option>
+                  <option>Last 7 days</option>
+                  <option>Last 30 days</option>
+                </select>
+              </div>
+              
+              <div class="view-all-table">
+                <table class="borings-table">
+                  <thead>
+                    <tr>
+                      <th>Bore ID</th>
+                      <th>Location</th>
+                      <th>Date</th>
+                      <th>Layers</th>
+                      <th>Project</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="allBoringsTable">
+                    <!-- Will be populated by JavaScript -->
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
@@ -663,6 +337,7 @@
   <script src="js/modules/data-panel.js"></script>
   <script src="js/modules/tab-manager.js"></script>
   <script src="js/modules/quick-extraction.js"></script>
+  <script src="js/modules/simplified-ui.js"></script>
   <script src="js/modules/ui.js"></script>
   <script src="js/app.js"></script>
   <script src="js/enhanced-features.js"></script>

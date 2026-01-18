@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StrataDesk - Groundwater Data Management</title>
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+  
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#0b5fff">
+  <meta name="background-color" content="#0f172a">
+  <meta name="display" content="standalone">
+  <meta name="orientation" content="any">
+  
+  <!-- iOS PWA Support -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="StrataDesk">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  
+  <!-- Windows PWA Support -->
+  <meta name="msapplication-TileColor" content="#0b5fff">
+  <meta name="msapplication-TileImage" content="icons/icon-144.png">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16.png">
+  
+  <!-- External Dependencies -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  
+  <!-- Local Stylesheets -->
+  <link rel="stylesheet" href="styles/variables.css">
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/components.css">
+  <link rel="stylesheet" href="styles/layout.css">
+  <link rel="stylesheet" href="styles/layout-new.css">
+  <link rel="stylesheet" href="styles/responsive.css">
+</head>
+<body class="app-body">
+  <!-- Custom Electron Title Bar -->
+  <div class="electron-titlebar">
+    <div class="titlebar-drag-region">
+      <div class="titlebar-left">
+        <img src="icons/icon.png" alt="StrataDesk" class="titlebar-icon">
+        <span class="titlebar-title">StrataDesk</span>
+        <span id="titlebarProject" class="titlebar-project"></span>
+      </div>
+      <div class="titlebar-center"></div>
+      <div class="titlebar-right">
+        <button id="titlebarMinimize" class="titlebar-btn titlebar-minimize" title="Minimize">
+          <svg width="12" height="12" viewBox="0 0 12 12">
+            <rect x="2" y="5" width="8" height="2" fill="currentColor"/>
+          </svg>
+        </button>
+        <button id="titlebarMaximize" class="titlebar-btn titlebar-maximize" title="Maximize">
+          <svg width="12" height="12" viewBox="0 0 12 12">
+            <rect x="2" y="2" width="8" height="8" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          </svg>
+        </button>
+        <button id="titlebarClose" class="titlebar-btn titlebar-close" title="Close">
+          <svg width="12" height="12" viewBox="0 0 12 12">
+            <path d="M2 2 L10 10 M10 2 L2 10" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App Container -->
+  <div class="app-container">
+    <!-- Login Screen -->
+    <div id="loginPanel" class="login-screen">
+      <div class="login-container">
+        <div class="login-header">
+          <img src="icons/icon.png" alt="StrataDesk" class="login-logo">
+          <h1 class="login-title">StrataDesk</h1>
+          <p class="login-subtitle">Professional Groundwater Data Management</p>
+        </div>
+        
+        <div class="login-form">
+          <div class="form-group">
+            <input id="username" placeholder="Username" class="login-input">
+          </div>
+          <div class="form-group">
+            <input id="password" placeholder="Password" type="password" class="login-input">
+          </div>
+          
+          <div class="login-actions">
+            <button id="loginBtn" class="btn-primary login-btn">Sign In</button>
+            <button id="registerBtn" class="btn-secondary register-btn">Create Account</button>
+          </div>
+          
+          <div class="login-divider">
+            <span>or</span>
+          </div>
+          
+          <button id="guestBtn" class="btn-guest">Continue as Guest</button>
+          
+          <div id="loginMsg" class="login-message"></div>
+        </div>
+        
+        <div class="login-footer">
+          <p>Your data stays secure in your browser</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Application - Simplified -->
+    <div id="appPanel" class="main-app-new hidden">
+      
+      <!-- Simplified Top Bar -->
+      <div class="app-topbar">
+        <div class="topbar-left">
+          <div class="user-profile">
+            <div class="user-avatar">👤</div>
+            <span id="welcomeUser" class="user-name">Welcome</span>
+          </div>
+        </div>
+        
+        <div class="topbar-center">
+          <div class="project-selector">
+            <select id="currentProjectSelect" class="project-select">
+              <option value="">All Projects</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="topbar-right">
+          <button id="addBoringBtn" class="btn-primary add-boring-btn">
+            <span class="btn-icon">+</span>
+            <span class="btn-text">Add Boring</span>
+          </button>
+          <button id="viewAllBtn" class="btn-secondary view-all-btn">
+            <span class="btn-icon">📋</span>
+            <span class="btn-text">View All</span>
+          </button>
+          <button id="darkModeToggle" class="icon-btn" title="Toggle Dark Mode">
+            <span class="theme-icon">🌙</span>
+          </button>
+          <button id="settingsBtn" class="icon-btn" title="Settings">
+            <span>⚙️</span>
+          </button>
+          <button id="logoutBtn" class="icon-btn" title="Sign Out">
+            <span>🚪</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Content: Map + Bottom Panel -->
+      <div class="app-main-content">
+        
+        <!-- Map View (Full Screen) -->
+        <div id="mapContainer" class="map-container-new">
+          <div id="map" class="map-full"></div>
+          
+          <!-- Map Controls Overlay -->
+          <div class="map-controls">
+            <button class="map-control-btn" id="zoomInBtn" title="Zoom In">+</button>
+            <button class="map-control-btn" id="zoomOutBtn" title="Zoom Out">−</button>
+            <button class="map-control-btn" id="locateBtn" title="My Location">📍</button>
+          </div>
+        </div>
+
+        <!-- Bottom Panel: Recent Borings -->
+        <div id="bottomPanel" class="bottom-panel">
+          <div class="panel-header">
+            <h3 class="panel-title">Recent Borings</h3>
+            <button class="panel-toggle" id="toggleBottomPanel">
+              <span class="toggle-icon">▼</span>
+            </button>
+          </div>
+          <div class="panel-content" id="recentBoringsList">
+            <div class="empty-state">
+              <div class="empty-icon">📍</div>
+              <p class="empty-text">No borings yet</p>
+              <button class="btn-primary" onclick="document.getElementById('addBoringBtn').click()">Add Your First Boring</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Add Boring Modal -->
+  <div id="addBoringModal" class="modal-overlay hidden">
+    <div class="modal-container modal-lg">
+      <div class="modal-header">
+        <h2 class="modal-title">Add New Boring</h2>
+        <button class="modal-close" id="closeAddBoringModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="add-boring-choices">
+          <button class="choice-card" id="choiceUpload">
+            <div class="choice-icon">📄</div>
+            <div class="choice-title">Upload Strata Chart</div>
+            <div class="choice-description">PDF or Excel with layers → Auto-extract</div>
+          </button>
+          <button class="choice-card" id="choiceManual">
+            <div class="choice-icon">✍️</div>
+            <div class="choice-title">Manual Entry</div>
+            <div class="choice-description">Enter layer data by hand</div>
+          </button>
+          <button class="choice-card" id="choiceFiles">
+            <div class="choice-icon">📁</div>
+            <div class="choice-title">Attach Files Only</div>
+            <div class="choice-description">No layer extraction</div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Extraction Wizard Modal -->
+  <div id="extractionWizardModal" class="modal-overlay hidden">
+    <div class="modal-container modal-xl">
+      <div class="modal-header">
+        <h2 class="modal-title">Extract Strata Layers</h2>
+        <button class="modal-close" id="closeExtractionWizard">✕</button>
+      </div>
+      <div class="modal-body">
+        
+        <!-- Step Indicator -->
+        <div class="wizard-steps">
+          <div class="wizard-step active" data-step="1">
+            <div class="step-number">1</div>
+            <div class="step-label">Upload</div>
+          </div>
+          <div class="wizard-step" data-step="2">
+            <div class="step-number">2</div>
+            <div class="step-label">Review</div>
+          </div>
+          <div class="wizard-step" data-step="3">
+            <div class="step-number">3</div>
+            <div class="step-label">Details</div>
+          </div>
+        </div>
+
+        <!-- Step 1: Upload -->
+        <div class="wizard-content" id="wizardStep1">
+          <div class="upload-zone" id="wizardUploadZone">
+            <input type="file" id="wizardFileInput" accept=".pdf,.xlsx,.xls" class="file-input-hidden">
+            <div class="upload-zone-content">
+              <div class="upload-icon">📁</div>
+              <h3>Drop strata chart file here</h3>
+              <p>or click to browse</p>
+              <div class="upload-formats">
+                <span class="format-badge">PDF</span>
+                <span class="format-badge">Excel (.xlsx, .xls)</span>
+              </div>
+            </div>
+          </div>
+          <div id="wizardFileInfo" class="file-info hidden"></div>
+          <div id="wizardProgress" class="extraction-progress-wizard hidden"></div>
+        </div>
+
+        <!-- Step 2: Review Layers -->
+        <div class="wizard-content hidden" id="wizardStep2">
+          <div class="review-container">
+            <div class="review-header">
+              <h3>Review Extracted Layers</h3>
+              <p class="review-subtitle">Click any cell to edit inline</p>
+            </div>
+            <div class="review-table-container">
+              <table class="review-table" id="wizardReviewTable">
+                <thead>
+                  <tr>
+                    <th>Layer</th>
+                    <th>Material</th>
+                    <th>Start Depth (ft)</th>
+                    <th>End Depth (ft)</th>
+                    <th>Thickness</th>
+                    <th>Confidence</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="wizardReviewTableBody">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+            <div class="review-actions">
+              <button class="btn-secondary" id="wizardBackToUpload">← Back</button>
+              <button class="btn-primary" id="wizardNextToDetails">Continue →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Add Details -->
+        <div class="wizard-content hidden" id="wizardStep3">
+          <div class="details-form">
+            <div class="form-section">
+              <label class="form-label">Bore ID *</label>
+              <input type="text" id="wizardBoreId" class="form-input" placeholder="e.g., TW-21" required>
+            </div>
+            
+            <div class="form-section">
+              <label class="form-label">Location *</label>
+              <div class="location-input-group">
+                <input type="text" id="wizardLocation" class="form-input" placeholder="Click map or enter coordinates" readonly>
+                <button class="btn-secondary" id="wizardClickMap">📍 Click Map</button>
+              </div>
+              <div id="wizardMapPreview" class="map-preview hidden"></div>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-section">
+                <label class="form-label">Date</label>
+                <input type="date" id="wizardDate" class="form-input">
+              </div>
+              <div class="form-section">
+                <label class="form-label">Water Level (ft)</label>
+                <input type="number" id="wizardWaterLevel" class="form-input" placeholder="e.g., 41.0" step="0.1">
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <label class="form-label">Project</label>
+              <select id="wizardProject" class="form-select">
+                <option value="">Select project...</option>
+              </select>
+            </div>
+            
+            <div class="form-section">
+              <label class="form-label">Notes</label>
+              <textarea id="wizardNotes" class="form-textarea" rows="3" placeholder="Additional notes..."></textarea>
+            </div>
+            
+            <div class="form-actions">
+              <button class="btn-secondary" id="wizardBackToReview">← Back</button>
+              <button class="btn-primary" id="wizardSave">💾 Save Boring</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Manual Entry Modal -->
+  <div id="manualEntryModal" class="modal-overlay hidden">
+    <div class="modal-container modal-lg">
+      <div class="modal-header">
+        <h2 class="modal-title">Manual Entry</h2>
+        <button class="modal-close" id="closeManualEntry">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="manual-entry-form">
+          <div class="form-section">
+            <label class="form-label">Bore ID *</label>
+            <input type="text" id="manualBoreId" class="form-input" placeholder="e.g., TW-21" required>
+          </div>
+          
+          <div class="form-section">
+            <label class="form-label">Location *</label>
+            <div class="location-input-group">
+              <input type="text" id="manualLocation" class="form-input" placeholder="Click map or enter coordinates" readonly>
+              <button class="btn-secondary" id="manualClickMap">📍 Click Map</button>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-section">
+              <label class="form-label">Date</label>
+              <input type="date" id="manualDate" class="form-input">
+            </div>
+            <div class="form-section">
+              <label class="form-label">Water Level (ft)</label>
+              <input type="number" id="manualWaterLevel" class="form-input" step="0.1">
+            </div>
+          </div>
+          
+          <div class="form-section">
+            <label class="form-label">Strata Layers</label>
+            <div id="manualLayersContainer" class="manual-layers">
+              <div class="manual-layer-row">
+                <input type="text" class="form-input" placeholder="Material" data-field="material">
+                <input type="number" class="form-input" placeholder="Start (ft)" step="0.1" data-field="start">
+                <input type="number" class="form-input" placeholder="End (ft)" step="0.1" data-field="end">
+                <button class="btn-icon-sm btn-danger" onclick="this.parentElement.remove()">✕</button>
+              </div>
+            </div>
+            <button class="btn-secondary btn-sm" id="addManualLayer">+ Add Layer</button>
+          </div>
+          
+          <div class="form-section">
+            <label class="form-label">Project</label>
+            <select id="manualProject" class="form-select">
+              <option value="">Select project...</option>
+            </select>
+          </div>
+          
+          <div class="form-section">
+            <label class="form-label">Notes</label>
+            <textarea id="manualNotes" class="form-textarea" rows="3"></textarea>
+          </div>
+          
+          <div class="form-actions">
+            <button class="btn-secondary" id="cancelManualEntry">Cancel</button>
+            <button class="btn-primary" id="saveManualEntry">💾 Save Boring</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Files Only Modal -->
+  <div id="filesOnlyModal" class="modal-overlay hidden">
+    <div class="modal-container modal-md">
+      <div class="modal-header">
+        <h2 class="modal-title">Attach Files</h2>
+        <button class="modal-close" id="closeFilesOnly">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="files-only-form">
+          <div class="form-section">
+            <label class="form-label">Bore ID *</label>
+            <input type="text" id="filesOnlyBoreId" class="form-input" required>
+          </div>
+          
+          <div class="form-section">
+            <label class="form-label">Location *</label>
+            <div class="location-input-group">
+              <input type="text" id="filesOnlyLocation" class="form-input" readonly>
+              <button class="btn-secondary" id="filesOnlyClickMap">📍 Click Map</button>
+            </div>
+          </div>
+          
+          <div class="form-section">
+            <label class="form-label">Files</label>
+            <div class="file-upload-area">
+              <input type="file" id="filesOnlyInput" multiple class="file-input-hidden">
+              <div class="file-upload-content" onclick="document.getElementById('filesOnlyInput').click()">
+                <div class="upload-icon">📁</div>
+                <p>Click to select files</p>
+              </div>
+            </div>
+            <div id="filesOnlyList" class="selected-files-list"></div>
+          </div>
+          
+          <div class="form-actions">
+            <button class="btn-secondary" id="cancelFilesOnly">Cancel</button>
+            <button class="btn-primary" id="saveFilesOnly">💾 Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- View All Modal -->
+  <div id="viewAllModal" class="modal-overlay hidden">
+    <div class="modal-container modal-xl">
+      <div class="modal-header">
+        <h2 class="modal-title">All Borings</h2>
+        <button class="modal-close" id="closeViewAll">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="view-all-controls">
+          <input type="text" id="searchBorings" class="form-input" placeholder="🔍 Search borings...">
+          <select id="filterProject" class="form-select">
+            <option value="">All Projects</option>
+          </select>
+          <button class="btn-secondary" id="exportAllData">📦 Export All</button>
+        </div>
+        <div class="borings-table-container">
+          <table class="borings-table" id="allBoringsTable">
+            <thead>
+              <tr>
+                <th>Bore ID</th>
+                <th>Location</th>
+                <th>Date</th>
+                <th>Layers</th>
+                <th>Project</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="allBoringsTableBody">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- External Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
+
+  <!-- Application Scripts -->
+  <script src="js/core/config.js"></script>
+  <script src="js/core/database.js"></script>
+  <script src="js/core/auth.js"></script>
+  <script src="js/core/api.js"></script>
+  <script src="js/modules/projects.js"></script>
+  <script src="js/modules/map.js"></script>
+  <script src="js/modules/files.js"></script>
+  <script src="js/modules/search.js"></script>
+  
+  <!-- Extraction Engine -->
+  <script src="js/extraction/Unit.js"></script>
+  <script src="js/extraction/StrataChart.js"></script>
+  <script src="js/extraction/ErrorClassifier.js"></script>
+  <script src="js/extraction/DepthNormalizer.js"></script>
+  <script src="js/extraction/FallbackManager.js"></script>
+  <script src="js/extraction/ErrorHandler.js"></script>
+  <script src="js/extraction/ValidationService.js"></script>
+  <script src="js/extraction/ExcelProcessor.js"></script>
+  <script src="js/extraction/PDFProcessor.js"></script>
+  <script src="js/extraction/StrataExtractor.js"></script>
+  
+  <!-- New UI Manager -->
+  <script src="js/ui-manager-new.js"></script>
+  <script src="js/app-new.js"></script>
+
+</body>
+</html>
