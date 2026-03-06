@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Excel Debug Tool</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #0f0; }
+        input { margin: 20px 0; padding: 10px; }
+        pre { background: #000; padding: 15px; border: 1px solid #0f0; overflow-x: auto; }
+        table { border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #0f0; padding: 8px; text-align: left; }
+        th { background: #003300; }
+    </style>
+</head>
+<body>
+    <h1>Excel File Debugger</h1>
+    <input type="file" id="file" accept=".xlsx,.xls">
+    <div id="output"></div>
+    
+    <script>
+        document.getElementById('file').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+                
+                let html = '<h2>First 20 Rows:</h2><table><tr><th>Row</th>';
+                const maxCols = Math.max(...rows.slice(0, 20).map(r => r.length));
+                for (let i = 0; i < maxCols; i++) html += `<th>Col ${i}</th>`;
+                html += '</tr>';
+                
+                for (let i = 0; i < Math.min(20, rows.length); i++) {
+                    html += `<tr><td>${i}</td>`;
+                    for (let j = 0; j < maxCols; j++) {
+                        html += `<td>${rows[i][j] || ''}</td>`;
+                    }
+                    html += '</tr>';
+                }
+                html += '</table>';
+                
+                // Find headers
+                html += '<h2>Header Detection:</h2><pre>';
+                for (let i = 0; i < Math.min(15, rows.length); i++) {
+                    const keywords = rows[i].filter(c => 
+                        /from|to|depth|start|end|material|soil|lithology|description/i.test(String(c))
+                    );
+                    if (keywords.length >= 2) {
+                        html += `Row ${i}: ${JSON.stringify(rows[i])}\n`;
+                        html += `  Keywords: ${keywords.join(', ')}\n\n`;
+                    }
+                }
+                html += '</pre>';
+                
+                document.getElementById('output').innerHTML = html;
+            };
+            
+            reader.readAsArrayBuffer(file);
+        });
+    </script>
+</body>
+</html>

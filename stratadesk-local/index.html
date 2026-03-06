@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StrataDesk v2.0 - Borewell Visualization</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css?v=2.0">
+</head>
+<body>
+    <!-- Topbar -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M15 18l-6-6 6-6"/>
+                </svg>
+            </button>
+            <svg width="32" height="32" viewBox="0 0 32 32" class="logo-svg">
+                <rect x="2" y="4" width="28" height="5" rx="1" fill="hsl(196 65% 33%)" opacity="0.9">
+                    <animate attributeName="width" from="0" to="28" dur="0.4s" fill="freeze" />
+                </rect>
+                <rect x="4" y="11" width="24" height="5" rx="1" fill="hsl(38 42% 60%)" opacity="0.8">
+                    <animate attributeName="width" from="0" to="24" dur="0.5s" fill="freeze" />
+                </rect>
+                <rect x="3" y="18" width="26" height="5" rx="1" fill="hsl(196 65% 40%)" opacity="0.7">
+                    <animate attributeName="width" from="0" to="26" dur="0.6s" fill="freeze" />
+                </rect>
+                <rect x="5" y="25" width="22" height="4" rx="1" fill="hsl(200 15% 45%)" opacity="0.6">
+                    <animate attributeName="width" from="0" to="22" dur="0.7s" fill="freeze" />
+                </rect>
+            </svg>
+        </div>
+        <h1 class="topbar-title">StrataDesk</h1>
+        <button class="settings-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M12 1v6m0 6v6m-9-9h6m6 0h6"/>
+            </svg>
+        </button>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-content">
+            <!-- Borewell Form -->
+            <section class="form-section">
+                <h3 class="section-title">
+                    <span id="formTitle">NEW BOREWELL</span>
+                </h3>
+                
+                <div class="form-group">
+                    <label class="form-label">Borewell Name</label>
+                    <input type="text" id="borewellName" class="form-input" placeholder="e.g. BW-001">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Location</label>
+                    <input type="text" id="location" class="form-input" placeholder="Auto-filled from map">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Latitude</label>
+                        <input type="number" id="latitude" class="form-input" step="any">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Longitude</label>
+                        <input type="number" id="longitude" class="form-input" step="any">
+                    </div>
+                </div>
+                
+                <button class="btn btn-secondary btn-sm btn-block" id="locateOnMap" style="margin-bottom: 0.75rem;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <circle cx="12" cy="12" r="3"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                    Locate on Map
+                </button>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Diameter (inches)</label>
+                        <select id="diameter" class="form-select">
+                            <option value="8">8"</option>
+                            <option value="10">10"</option>
+                            <option value="12">12"</option>
+                            <option value="14">14"</option>
+                            <option value="16">16"</option>
+                            <option value="18">18"</option>
+                            <option value="20">20"</option>
+                            <option value="22">22"</option>
+                            <option value="24">24"</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Total Depth (ft)</label>
+                        <input type="number" id="totalDepth" class="form-input" min="0">
+                    </div>
+                </div>
+
+                <div id="depthWarning" class="depth-warning" style="display: none;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                    <span id="warningText"></span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <textarea id="notes" class="form-textarea" rows="3" placeholder="Optional notes..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn btn-primary" id="saveBorewell">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                            <polyline points="17 21 17 13 7 13 7 21"/>
+                            <polyline points="7 3 7 8 15 8"/>
+                        </svg>
+                        Save
+                    </button>
+                    <button class="btn btn-danger" id="deleteBorewell" style="display: none;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                        Delete
+                    </button>
+                </div>
+            </section>
+
+            <!-- Strata Layers -->
+            <div class="separator"></div>
+            <section class="layers-section" id="layersSection" style="display: none;">
+                <div class="section-header">
+                    <h3 class="section-title">STRATA LAYERS</h3>
+                    <div class="header-actions">
+                        <button class="btn-ghost btn-sm" id="autoClose">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="7 13 12 18 17 13"/>
+                                <polyline points="7 6 12 11 17 6"/>
+                            </svg>
+                            Auto-close
+                        </button>
+                        <button class="btn-ghost btn-sm btn-primary-text" id="addLayer">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
+                            Add
+                        </button>
+                    </div>
+                </div>
+                <div id="layersTable"></div>
+                <div id="overlapWarning" class="overlap-warning" style="display: none;">
+                    ⚠ Overlapping depth ranges detected
+                </div>
+            </section>
+
+            <!-- File Upload -->
+            <div class="separator" id="uploadSeparator" style="display: none;"></div>
+            <section class="upload-section" id="uploadSection" style="display: none;">
+                <h3 class="section-title">DATA IMPORT</h3>
+                
+                <!-- File Type Tabs -->
+                <div class="import-tabs">
+                    <button class="import-tab active" data-type="data">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        Data Files
+                    </button>
+                    <button class="import-tab" data-type="chart">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                        Chart Images
+                    </button>
+                </div>
+                
+                <!-- Data Files Upload -->
+                <div class="import-content active" id="dataImport">
+                    <div class="upload-zone" id="uploadZone">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <p>Drag & drop Excel or PDF file<br>or click to browse</p>
+                        <input type="file" id="fileInput" accept=".xlsx,.xls,.pdf" style="display: none;">
+                    </div>
+                </div>
+                
+                <!-- Chart Image Upload -->
+                <div class="import-content" id="chartImport">
+                    <div class="upload-zone" id="chartUploadZone">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                        <p>Drag & drop strata chart image<br>PNG, JPG, or PDF with chart</p>
+                        <input type="file" id="chartFileInput" accept=".png,.jpg,.jpeg,.pdf,image/*" style="display: none;">
+                    </div>
+                    <div class="chart-extract-info">
+                        <p class="info-text">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="16" x2="12" y2="12"/>
+                                <line x1="12" y1="8" x2="12.01" y2="8"/>
+                            </svg>
+                            Upload a strata chart image and we'll extract the layers automatically
+                        </p>
+                    </div>
+                </div>
+                
+                <button class="btn btn-secondary btn-block" id="exportPDF">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Export PDF Report
+                </button>
+            </section>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" data-tab="map">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+                    <line x1="8" y1="2" x2="8" y2="18"/>
+                    <line x1="16" y1="6" x2="16" y2="22"/>
+                </svg>
+                Map View
+            </button>
+            <button class="tab" data-tab="cross-section">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                    <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+                Cross-Section
+            </button>
+        </div>
+
+        <!-- Map View -->
+        <div class="tab-content active" id="mapTab">
+            <div class="map-search-container">
+                <div class="search-bar">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="m21 21-4.35-4.35"/>
+                    </svg>
+                    <input type="text" id="mapSearch" placeholder="Search location (e.g., Mumbai, India)..." class="map-search-input">
+                    <div id="searchResults" class="search-results"></div>
+                </div>
+            </div>
+            <div class="map-wrapper">
+                <div id="map"></div>
+                <div class="chart-panel" id="chartPanel" style="display: none;">
+                    <h4 id="chartTitle" class="chart-title">Borewell — Strata</h4>
+                    <div id="chartContainer"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cross-Section View -->
+        <div class="tab-content" id="crossSectionTab">
+            <div class="cross-section-controls">
+                <span class="controls-label">View Mode:</span>
+                <button class="btn btn-sm active" data-mode="smooth">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                    </svg>
+                    Smooth Flow
+                </button>
+                <button class="btn btn-sm" data-mode="strict">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="4" y1="21" x2="4" y2="14"/>
+                        <line x1="4" y1="10" x2="4" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="12"/>
+                        <line x1="12" y1="8" x2="12" y2="3"/>
+                        <line x1="20" y1="21" x2="20" y2="16"/>
+                        <line x1="20" y1="12" x2="20" y2="3"/>
+                    </svg>
+                    Strict Layer
+                </button>
+            </div>
+            <div class="cross-section-container" id="crossSectionContainer">
+                <div class="empty-state">
+                    Select 2+ borewells on the map (checkbox in popup) to view cross-section
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Container -->
+    <div id="toastContainer"></div>
+
+    <!-- Preview Modal -->
+    <div id="previewModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Import Preview</h3>
+                <button class="modal-close" id="closePreview">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-description">
+                    Review and edit detected strata layers before importing
+                    <span id="confidenceBadge" class="confidence-badge"></span>
+                </p>
+                <div id="previewTable" class="preview-table-container"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelImport">Cancel</button>
+                <button class="btn btn-primary" id="confirmImport">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    Confirm Import
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="app.js?v=2.0"></script>
+</body>
+</html>
