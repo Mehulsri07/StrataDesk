@@ -85,20 +85,21 @@ export default function StrataMap() {
     // Click handler
     map.on('click', (e) => {
       if (mapModeRef.current === 'pinpoint') {
+        // Set pending location and switch mode — do NOT dispatch SET_ACTIVE_BOREWELL
+        // because that action clears pendingLatLng in the reducer.
         setPendingLatLng({ lat: e.latlng.lat, lng: e.latlng.lng });
         setSearchQuery('');
         setSearchResults([]);
         dispatch({ type: 'SET_MAP_MODE', mode: 'browse' as MapMode });
 
-        // Open the right panel so the form appears immediately
-        dispatch({ type: 'SET_ACTIVE_BOREWELL', id: null });
+        // Open the right panel if it's closed
         if (!rightPanelOpenRef.current) {
           dispatch({ type: 'TOGGLE_RIGHT_PANEL' });
         }
 
         showToast('Location pinned — fill in the details on the right.', 'success');
 
-        // Add a temporary pulse marker
+        // Temporary pulse marker
         const pulseIcon = L.divIcon({
           className: 'pulse-marker',
           html: `<div style="width:40px;height:40px;background:rgba(42,111,151,0.3);border:2px solid #a9d6e5;border-radius:50%;animation:pinPulse 1.5s infinite;"></div>`,

@@ -7,12 +7,9 @@ export default function LeftSidebar() {
   const { state, dispatch, setActiveBorewell } = useApp();
 
   const handleNewBorewell = () => {
-    // Open the right panel so the form is visible
-    if (!state.rightPanelOpen) {
-      dispatch({ type: 'TOGGLE_RIGHT_PANEL' });
-    }
+    // Clear active borewell and switch to pinpoint mode.
+    // Don't open the right panel yet — wait until the user actually taps the map.
     dispatch({ type: 'SET_ACTIVE_BOREWELL', id: null });
-    dispatch({ type: 'SET_PENDING_LATLNG', payload: null });
     dispatch({ type: 'SET_MAP_MODE', mode: 'pinpoint' as MapMode });
   };
 
