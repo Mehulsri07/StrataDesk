@@ -48,16 +48,29 @@ module.exports = {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        void: "#012a4a",
-        "deep-marine": "#013a63",
-        ocean: "#01497c",
-        abyss: "#014f86",
-        core: "#2a6f97",
-        shoal: "#2c7da0",
-        reef: "#468faf",
-        shallows: "#61a5c2",
-        tide: "#89c2d9",
-        foam: "#a9d6e5",
+        // ── Semantic colour tokens ──────────────────────────────────────────
+        // Dark charcoal base — no blue tint
+        void:        "#0f1117",   // deepest background
+        "deep-void": "#13161e",   // panel backgrounds
+        surface:     "#1a1d27",   // card / elevated surfaces
+        overlay:     "#21253200", // modal overlays
+
+        // Primary accent — warm amber/gold (geological, earthy)
+        core:    "#c9933a",   // primary buttons, active states
+        shoal:   "#d4a853",   // hover on primary
+        reef:    "#e0bc72",   // highlights, icons
+        shallows:"#e8cc90",   // secondary text accents
+        tide:    "#f0ddb0",   // light accent text
+        foam:    "#f5ead0",   // primary text / headings
+
+        // Secondary accent — muted teal (depth indicators, water level)
+        teal:    "#3d8b7a",
+        "teal-light": "#4fa898",
+
+        // Neutral text scale
+        "text-primary":   "#e8e3d8",   // main text
+        "text-secondary": "#a09880",   // secondary text
+        "text-muted":     "#6b6455",   // muted / placeholder
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
@@ -73,8 +86,8 @@ module.exports = {
       },
       boxShadow: {
         xs: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
-        glass: "0 8px 32px rgba(0, 0, 0, 0.4)",
-        "glass-lg": "0 16px 48px rgba(0, 0, 0, 0.6)",
+        glass: "0 8px 32px rgba(0, 0, 0, 0.5)",
+        "glass-lg": "0 16px 48px rgba(0, 0, 0, 0.7)",
       },
       keyframes: {
         "accordion-down": {

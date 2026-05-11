@@ -48,7 +48,7 @@ function Workspace() {
   }, [state.sidebarOpen, state.rightPanelOpen, state.bottomDrawerOpen]);
 
   return (
-    <div className="h-screen w-screen overflow-hidden" style={{ background: '#012a4a' }}>
+    <div className="h-screen w-screen overflow-hidden" style={{ background: '#0f1117' }}>
       {/* Top Bar */}
       <TopBar />
 
@@ -98,7 +98,7 @@ function Workspace() {
             }}
             className="fixed right-4 top-1/2 -translate-y-1/2 z-40 w-10 h-10 rounded-xl flex items-center justify-center text-shallows hover:text-foam transition-all shadow-glass"
             style={{
-              background: 'rgba(1, 42, 74, 0.8)',
+              background: 'rgba(15, 17, 23, 0.85)',
               backdropFilter: 'blur(16px)',
               border: '1px solid rgba(169, 214, 229, 0.1)',
             }}
@@ -122,7 +122,7 @@ function Workspace() {
             }}
             className="fixed left-4 top-1/2 -translate-y-1/2 z-40 w-10 h-10 rounded-xl flex items-center justify-center text-shallows hover:text-foam transition-all shadow-glass"
             style={{
-              background: 'rgba(1, 42, 74, 0.8)',
+              background: 'rgba(15, 17, 23, 0.85)',
               backdropFilter: 'blur(16px)',
               border: '1px solid rgba(169, 214, 229, 0.1)',
             }}
@@ -146,7 +146,7 @@ export default function App() {
 }
 
   return (
-    <div className="h-screen w-screen overflow-hidden" style={{ background: '#012a4a' }}>
+    <div className="h-screen w-screen overflow-hidden" style={{ background: '#0f1117' }}>
       {/* Top Bar */}
       <TopBar />
 
@@ -196,7 +196,7 @@ export default function App() {
             }}
             className="fixed right-4 top-1/2 -translate-y-1/2 z-40 w-10 h-10 rounded-xl flex items-center justify-center text-shallows hover:text-foam transition-all shadow-glass"
             style={{
-              background: 'rgba(1, 42, 74, 0.8)',
+              background: 'rgba(15, 17, 23, 0.85)',
               backdropFilter: 'blur(16px)',
               border: '1px solid rgba(169, 214, 229, 0.1)',
             }}
@@ -220,7 +220,7 @@ export default function App() {
             }}
             className="fixed left-4 top-1/2 -translate-y-1/2 z-40 w-10 h-10 rounded-xl flex items-center justify-center text-shallows hover:text-foam transition-all shadow-glass"
             style={{
-              background: 'rgba(1, 42, 74, 0.8)',
+              background: 'rgba(15, 17, 23, 0.85)',
               backdropFilter: 'blur(16px)',
               border: '1px solid rgba(169, 214, 229, 0.1)',
             }}

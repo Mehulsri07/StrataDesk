@@ -120,7 +120,7 @@ export default function CrossSection() {
             <g key={bw.id}>
               {/* Name */}
               <text x={x} y={marginY - 20} textAnchor="middle"
-                fill="#a9d6e5" fontSize={12} fontWeight={600} fontFamily="Inter, sans-serif">
+                fill="#e8e3d8" fontSize={12} fontWeight={600} fontFamily="Inter, sans-serif">
                 {bw.name}
               </text>
               <text x={x} y={marginY - 6} textAnchor="middle"
@@ -186,7 +186,7 @@ export default function CrossSection() {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4 }}
       className="fixed inset-0 z-30 flex flex-col"
-      style={{ background: '#012a4a', top: 56 }}
+      style={{ background: '#0f1117', top: 56 }}
     >
       {/* Controls */}
       <div className="flex items-center gap-4 px-6 py-3 border-b border-white/5">

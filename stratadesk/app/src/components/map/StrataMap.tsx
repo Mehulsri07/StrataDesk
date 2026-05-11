@@ -8,22 +8,22 @@ import type { MapMode, SearchResult } from '@/types';
 
 const PIN_SVG = `<svg width="48" height="60" viewBox="0 0 48 60">
   <ellipse cx="24" cy="56" rx="10" ry="3" fill="#000000" opacity="0.4" filter="blur(2px)"/>
-  <path d="M24 0 C10 0 0 10 0 24 C0 38 24 58 24 58 C24 58 48 38 48 24 C48 10 38 0 24 0Z" fill="#012a4a" stroke="#468faf" stroke-width="2"/>
-  <path d="M24 4 C14 4 6 12 6 22 C6 28 10 36 16 42 C20 46 24 50 24 50 C24 50 28 46 32 42 C38 36 42 28 42 22 C42 12 34 4 24 4Z" fill="#014f86"/>
-  <circle cx="24" cy="22" r="8" fill="#a9d6e5"/>
+  <path d="M24 0 C10 0 0 10 0 24 C0 38 24 58 24 58 C24 58 48 38 48 24 C48 10 38 0 24 0Z" fill="#1a1d27" stroke="#c9933a" stroke-width="2"/>
+  <path d="M24 4 C14 4 6 12 6 22 C6 28 10 36 16 42 C20 46 24 50 24 50 C24 50 28 46 32 42 C38 36 42 28 42 22 C42 12 34 4 24 4Z" fill="#21253a"/>
+  <circle cx="24" cy="22" r="8" fill="#d4a853"/>
   <circle cx="24" cy="22" r="4" fill="#ffffff"/>
-  <line x1="24" y1="14" x2="24" y2="30" stroke="#012a4a" stroke-width="1.5"/>
-  <line x1="16" y1="22" x2="32" y2="22" stroke="#012a4a" stroke-width="1.5"/>
+  <line x1="24" y1="14" x2="24" y2="30" stroke="#0f1117" stroke-width="1.5"/>
+  <line x1="16" y1="22" x2="32" y2="22" stroke="#0f1117" stroke-width="1.5"/>
 </svg>`;
 
 const ACTIVE_PIN_SVG = `<svg width="48" height="60" viewBox="0 0 48 60">
   <ellipse cx="24" cy="56" rx="12" ry="4" fill="#000000" opacity="0.4" filter="blur(3px)"/>
-  <path d="M24 0 C10 0 0 10 0 24 C0 38 24 58 24 58 C24 58 48 38 48 24 C48 10 38 0 24 0Z" fill="#014f86" stroke="#a9d6e5" stroke-width="2.5" style="filter: drop-shadow(0 0 8px rgba(169,214,229,0.5))"/>
-  <path d="M24 4 C14 4 6 12 6 22 C6 28 10 36 16 42 C20 46 24 50 24 50 C24 50 28 46 32 42 C38 36 42 28 42 22 C42 12 34 4 24 4Z" fill="#2a6f97"/>
-  <circle cx="24" cy="22" r="8" fill="#a9d6e5"/>
+  <path d="M24 0 C10 0 0 10 0 24 C0 38 24 58 24 58 C24 58 48 38 48 24 C48 10 38 0 24 0Z" fill="#21253a" stroke="#d4a853" stroke-width="2.5" style="filter: drop-shadow(0 0 8px rgba(212,168,83,0.5))"/>
+  <path d="M24 4 C14 4 6 12 6 22 C6 28 10 36 16 42 C20 46 24 50 24 50 C24 50 28 46 32 42 C38 36 42 28 42 22 C42 12 34 4 24 4Z" fill="#c9933a"/>
+  <circle cx="24" cy="22" r="8" fill="#f0ddb0"/>
   <circle cx="24" cy="22" r="4" fill="#ffffff"/>
-  <line x1="24" y1="14" x2="24" y2="30" stroke="#012a4a" stroke-width="1.5"/>
-  <line x1="16" y1="22" x2="32" y2="22" stroke="#012a4a" stroke-width="1.5"/>
+  <line x1="24" y1="14" x2="24" y2="30" stroke="#0f1117" stroke-width="1.5"/>
+  <line x1="16" y1="22" x2="32" y2="22" stroke="#0f1117" stroke-width="1.5"/>
 </svg>`;
 
 const borewellIcon = L.divIcon({
@@ -102,7 +102,7 @@ export default function StrataMap() {
         // Temporary pulse marker
         const pulseIcon = L.divIcon({
           className: 'pulse-marker',
-          html: `<div style="width:40px;height:40px;background:rgba(42,111,151,0.3);border:2px solid #a9d6e5;border-radius:50%;animation:pinPulse 1.5s infinite;"></div>`,
+          html: `<div style="width:40px;height:40px;background:rgba(201,147,58,0.25);border:2px solid #d4a853;border-radius:50%;animation:pinPulse 1.5s infinite;"></div>`,
           iconSize: [40, 40],
           iconAnchor: [20, 20],
         });
@@ -142,14 +142,14 @@ export default function StrataMap() {
       }).addTo(map);
 
       const popupContent = `
-        <div style="font-family:'Inter',sans-serif;padding:4px;min-width:200px;color:#a9d6e5;">
-          <h3 style="margin:0 0 6px 0;color:#fff;font-size:14px;font-weight:600;">${bw.name || 'Unnamed'}</h3>
+        <div style="font-family:'Inter',sans-serif;padding:4px;min-width:200px;color:#e8e3d8;">
+          <h3 style="margin:0 0 6px 0;color:#f5ead0;font-size:14px;font-weight:600;">${bw.name || 'Unnamed'}</h3>
           <div style="font-size:11px;opacity:0.7;margin-bottom:4px;">${bw.location || 'No location'}</div>
           <div style="font-size:11px;opacity:0.8;margin-bottom:8px;">Depth: ${bw.totalDepth}ft | Dia: ${bw.diameter}"</div>
           <div style="font-size:10px;opacity:0.5;margin-bottom:10px;">${bw.layers.length} layers</div>
           <div style="display:flex;gap:6px;">
-            <button onclick="window._strataSelectBorewell('${bw.id}')" style="flex:1;background:#2a6f97;border:none;color:white;padding:5px 8px;border-radius:4px;cursor:pointer;font-family:'Inter';font-size:11px;font-weight:500;">Select</button>
-            <button onclick="window._strataToggleCross('${bw.id}')" style="flex:1;background:rgba(169,214,229,0.1);border:1px solid rgba(169,214,229,0.2);color:#a9d6e5;padding:5px 8px;border-radius:4px;cursor:pointer;font-family:'Inter';font-size:11px;font-weight:500;">${bw.selectedForCrossSection ? 'Remove' : 'Cross-Sec'}</button>
+            <button onclick="window._strataSelectBorewell('${bw.id}')" style="flex:1;background:#c9933a;border:none;color:#0f1117;padding:5px 8px;border-radius:4px;cursor:pointer;font-family:'Inter';font-size:11px;font-weight:600;">Select</button>
+            <button onclick="window._strataToggleCross('${bw.id}')" style="flex:1;background:rgba(232,227,216,0.08);border:1px solid rgba(232,227,216,0.15);color:#e8e3d8;padding:5px 8px;border-radius:4px;cursor:pointer;font-family:'Inter';font-size:11px;font-weight:500;">${bw.selectedForCrossSection ? 'Remove' : 'Cross-Sec'}</button>
           </div>
         </div>
       `;
@@ -261,9 +261,9 @@ export default function StrataMap() {
               placeholder="Search city, village, road..."
               className="w-full py-2.5 pl-10 pr-24 rounded-xl text-sm text-foam placeholder:text-shallows/50 focus:outline-none focus:ring-2 focus:ring-core/50 transition-all duration-200"
               style={{
-                background: 'rgba(1, 42, 74, 0.9)',
+                background: 'rgba(15, 17, 23, 0.92)',
                 backdropFilter: 'blur(16px)',
-                border: '1px solid rgba(169, 214, 229, 0.12)',
+                border: '1px solid rgba(232, 227, 216, 0.12)',
               }}
             />
             {searchQuery && (
@@ -292,9 +292,9 @@ export default function StrataMap() {
                 exit={{ opacity: 0, y: -8 }}
                 className="absolute top-full left-0 right-0 mt-2 rounded-xl overflow-hidden shadow-glass-lg"
                 style={{
-                  background: 'rgba(1, 42, 74, 0.95)',
+                  background: 'rgba(22, 25, 32, 0.97)',
                   backdropFilter: 'blur(24px)',
-                  border: '1px solid rgba(169, 214, 229, 0.12)',
+                  border: '1px solid rgba(232, 227, 216, 0.12)',
                   maxHeight: 320,
                   overflowY: 'auto',
                 }}
@@ -318,7 +318,7 @@ export default function StrataMap() {
 
           {searchLoading && (
             <div className="absolute top-full left-0 right-0 mt-2 py-3 text-center text-shallows text-sm rounded-xl"
-              style={{ background: 'rgba(1, 42, 74, 0.9)', backdropFilter: 'blur(16px)' }}
+              style={{ background: 'rgba(15, 17, 23, 0.92)', backdropFilter: 'blur(16px)' }}
             >
               Searching...
             </div>
@@ -367,10 +367,10 @@ export default function StrataMap() {
             exit={{ opacity: 0, y: 10 }}
             className="absolute top-20 left-1/2 -translate-x-1/2 z-[500] px-6 py-3 rounded-xl text-sm font-medium"
             style={{
-              background: 'rgba(42, 111, 151, 0.9)',
+              background: 'rgba(201, 147, 58, 0.85)',
               backdropFilter: 'blur(16px)',
-              color: '#a9d6e5',
-              border: '1px solid rgba(169, 214, 229, 0.25)',
+              color: '#0f1117',
+              border: '1px solid rgba(212, 168, 83, 0.4)',
             }}
           >
             <div className="flex items-center gap-2">

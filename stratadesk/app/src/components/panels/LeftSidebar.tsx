@@ -23,7 +23,7 @@ export default function LeftSidebar() {
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           className="fixed left-0 top-14 bottom-0 w-[360px] z-40 flex flex-col overflow-hidden"
           style={{
-            background: 'rgba(1, 42, 74, 0.8)',
+            background: 'rgba(15, 17, 23, 0.85)',
             backdropFilter: 'blur(24px)',
             WebkitBackdropFilter: 'blur(24px)',
             borderRight: '1px solid rgba(169, 214, 229, 0.1)',
@@ -73,7 +73,7 @@ export default function LeftSidebar() {
                         <div
                           className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                           style={{
-                            background: isActive ? '#a9d6e5' : '#468faf',
+                            background: isActive ? '#d4a853' : '#c9933a',
                             boxShadow: isActive ? '0 0 8px rgba(169,214,229,0.4)' : 'none',
                           }}
                         />

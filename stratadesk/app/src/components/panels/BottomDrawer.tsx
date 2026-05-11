@@ -32,7 +32,7 @@ export default function BottomDrawer() {
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           className="fixed left-0 right-0 bottom-0 z-[60]"
           style={{
-            background: 'rgba(1, 42, 74, 0.9)',
+            background: 'rgba(15, 17, 23, 0.92)',
             backdropFilter: 'blur(24px)',
             WebkitBackdropFilter: 'blur(24px)',
             borderTop: '1px solid rgba(169, 214, 229, 0.12)',
@@ -90,7 +90,7 @@ export default function BottomDrawer() {
                   {topMaterials.map(([mat, depth]) => {
                     const maxVal = topMaterials[0][1];
                     const pct = (depth / maxVal) * 100;
-                    const color = state.borewells.flatMap(b => b.layers).find(l => l.material === mat)?.color || '#468faf';
+                    const color = state.borewells.flatMap(b => b.layers).find(l => l.material === mat)?.color || '#c9933a';
                     return (
                       <div key={mat} className="flex flex-col items-center gap-1 flex-1">
                         <span className="text-xs text-shallows/60">{Math.round(depth)}ft</span>

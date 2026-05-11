@@ -17,7 +17,7 @@ export default function ToastContainer() {
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
             className="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-glass-lg border"
             style={{
-              background: 'rgba(1, 42, 74, 0.92)',
+              background: 'rgba(15, 17, 23, 0.95)',
               backdropFilter: 'blur(24px)',
               borderColor: toast.type === 'error'
                 ? 'rgba(239, 68, 68, 0.3)'
@@ -28,7 +28,7 @@ export default function ToastContainer() {
               borderLeftColor: toast.type === 'error'
                 ? '#ef4444'
                 : toast.type === 'info'
-                ? '#468faf'
+                ? '#c9933a'
                 : '#22c55e',
               minWidth: 280,
             }}

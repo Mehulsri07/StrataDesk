@@ -14,7 +14,7 @@ export default function TopBar() {
       transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
       className="fixed top-0 left-0 right-0 h-14 z-[100] flex items-center justify-between px-4"
       style={{
-        background: 'rgba(1, 42, 74, 0.85)',
+        background: 'rgba(15, 17, 23, 0.90)',
         backdropFilter: 'blur(24px)',
         WebkitBackdropFilter: 'blur(24px)',
         borderBottom: '1px solid rgba(169, 214, 229, 0.12)',

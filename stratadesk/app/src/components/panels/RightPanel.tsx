@@ -169,7 +169,7 @@ export default function RightPanel() {
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           className="fixed right-0 top-14 bottom-0 w-[400px] z-40 flex flex-col overflow-hidden"
           style={{
-            background: 'rgba(1, 42, 74, 0.8)',
+            background: 'rgba(15, 17, 23, 0.85)',
             backdropFilter: 'blur(24px)',
             WebkitBackdropFilter: 'blur(24px)',
             borderLeft: '1px solid rgba(169, 214, 229, 0.1)',
