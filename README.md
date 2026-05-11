@@ -1,11 +1,9 @@
 # StrataDesk
 
-Borewell strata visualization — three-tier architecture.
+Borewell strata visualization — see [`stratadesk/README.md`](./stratadesk/README.md) for full documentation.
 
 ```bash
 cd stratadesk
 docker compose up --build
 # → http://localhost:3000
 ```
-
-See [`stratadesk/README.md`](./stratadesk/README.md) for full documentation.
