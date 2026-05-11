@@ -52,11 +52,16 @@ export default function StrataMap() {
   const [searchLoading, setSearchLoading] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mapModeRef = useRef<MapMode>(state.mapMode);
+  const rightPanelOpenRef = useRef<boolean>(state.rightPanelOpen);
   const searchControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     mapModeRef.current = state.mapMode;
   }, [state.mapMode]);
+
+  useEffect(() => {
+    rightPanelOpenRef.current = state.rightPanelOpen;
+  }, [state.rightPanelOpen]);
 
   // Initialize map
   useEffect(() => {
@@ -84,7 +89,14 @@ export default function StrataMap() {
         setSearchQuery('');
         setSearchResults([]);
         dispatch({ type: 'SET_MAP_MODE', mode: 'browse' as MapMode });
-        showToast('Borewell location pinned. Fill details in the sidebar.', 'success');
+
+        // Open the right panel so the form appears immediately
+        dispatch({ type: 'SET_ACTIVE_BOREWELL', id: null });
+        if (!rightPanelOpenRef.current) {
+          dispatch({ type: 'TOGGLE_RIGHT_PANEL' });
+        }
+
+        showToast('Location pinned — fill in the details on the right.', 'success');
 
         // Add a temporary pulse marker
         const pulseIcon = L.divIcon({
