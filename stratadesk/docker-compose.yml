@@ -1,0 +1,62 @@
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       stratadesk
+      POSTGRES_USER:     stratadesk
+      POSTGRES_PASSWORD: stratadesk
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stratadesk"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Express API ─────────────────────────────────────────────────────────────
+  api:
+    image: mehul0701/stratadesk-api:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DB_HOST:     db
+      DB_PORT:     5432
+      DB_NAME:     stratadesk
+      DB_USER:     stratadesk
+      DB_PASSWORD: stratadesk
+      PORT:        3001
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── nginx — frontend + reverse proxy ───────────────────────────────────────
+  web:
+    image: mehul0701/stratadesk-web:latest
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      # Live-reload during development — edit files and just refresh the browser
+      - ./frontend/index.html:/usr/share/nginx/html/index.html:ro
+      - ./frontend/styles.css:/usr/share/nginx/html/styles.css:ro
+      - ./frontend/app.js:/usr/share/nginx/html/app.js:ro
+
+volumes:
+  pgdata:
