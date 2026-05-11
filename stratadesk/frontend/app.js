@@ -1015,184 +1015,97 @@ function parseExcel(file) {
     const reader = new FileReader();
     reader.onload = (e) => {
         try {
-            const data = new Uint8Array(e.target.result);
+            const data     = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
-            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-            const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
-            
-            console.log('Excel rows:', rows.slice(0, 15)); // Debug: show first 15 rows
-            
-            // Enhanced header detection with more patterns
-            let headerIdx = -1;
-            const headerPatterns = /from|to|depth|start|end|lithology|strata|material|description|layer|soil|type|formation|s\.?no|sr\.?no|serial/i;
-            
-            for (let i = 0; i < Math.min(15, rows.length); i++) {
-                if (!rows[i] || rows[i].length === 0) continue;
-                
-                const cellsWithHeaders = rows[i].filter(cell => {
-                    const cellStr = String(cell).trim();
-                    return cellStr && headerPatterns.test(cellStr);
-                }).length;
-                
-                // Need at least 2 matching headers
-                if (cellsWithHeaders >= 2) {
-                    headerIdx = i;
-                    console.log('Found header at row:', i, rows[i]);
-                    break;
-                }
-            }
-            
-            if (headerIdx === -1) {
-                // Try alternative: look for numeric patterns in first 3 columns
-                console.log('No headers found, trying numeric pattern detection...');
-                for (let i = 0; i < Math.min(15, rows.length); i++) {
-                    if (!rows[i] || rows[i].length < 3) continue;
-                    
-                    // Check if row has numbers in first few columns (likely data row)
-                    const hasNumbers = rows[i].slice(0, 3).filter(cell => {
-                        const num = parseFloat(String(cell).replace(/[^\d.]/g, ''));
-                        return !isNaN(num) && num >= 0;
-                    }).length >= 2;
-                    
-                    if (hasNumbers) {
-                        headerIdx = Math.max(0, i - 1); // Header is likely one row before
-                        console.log('Detected data at row', i, ', assuming header at', headerIdx);
-                        break;
-                    }
-                }
-            }
-            
-            if (headerIdx === -1) {
-                showToast('Could not find header row. Trying to parse without headers...', 'warning');
-                headerIdx = 0; // Start from beginning
-            }
-            
-            const headers = rows[headerIdx].map(h => String(h).toLowerCase().trim());
-            console.log('Headers:', headers);
-            console.log('Header row full:', rows[headerIdx]);
-            
-            // Enhanced column detection with more patterns
-            let fromIdx = headers.findIndex(h => /from|start|top|upper/i.test(h));
-            let toIdx = headers.findIndex(h => /to|end|bottom|lower/i.test(h));
-            let materialIdx = headers.findIndex(h => /lithology|strata|material|description|layer|soil|type|formation|encountered/i.test(h));
-            
-            console.log('Initial detection - From:', fromIdx, 'To:', toIdx, 'Material:', materialIdx);
-            
-            // If not found by name, try by position (common patterns)
-            if (fromIdx === -1 || toIdx === -1 || materialIdx === -1) {
-                console.log('Trying positional detection...');
-                
-                // Common pattern: S.No | From | To | Material
-                // Or: From | To | Material
-                for (let i = headerIdx + 1; i < Math.min(headerIdx + 5, rows.length); i++) {
-                    const row = rows[i];
-                    if (!row || row.length < 3) continue;
-                    
-                    // Try to find numeric columns
-                    for (let col = 0; col < row.length - 2; col++) {
-                        const val1 = parseFloat(String(row[col]).replace(/[^\d.]/g, ''));
-                        const val2 = parseFloat(String(row[col + 1]).replace(/[^\d.]/g, ''));
-                        const val3 = String(row[col + 2]).trim();
-                        
-                        if (!isNaN(val1) && !isNaN(val2) && val3 && val3.length > 1 && isNaN(parseFloat(val3))) {
-                            fromIdx = col;
-                            toIdx = col + 1;
-                            materialIdx = col + 2;
-                            console.log('Found columns by pattern:', fromIdx, toIdx, materialIdx);
-                            break;
-                        }
-                    }
-                    if (fromIdx !== -1) break;
-                }
-            }
-            
-            if (fromIdx === -1 || toIdx === -1 || materialIdx === -1) {
-                showToast('Could not identify depth and material columns. Please check file format.', 'error');
-                console.error('Column detection failed. Headers:', headers);
-                return;
-            }
-            
-            console.log('Using columns - From:', fromIdx, 'To:', toIdx, 'Material:', materialIdx);
-            
-            const layers = [];
-            let totalConfidence = 0;
-            let validRows = 0;
-            
-            for (let i = headerIdx + 1; i < rows.length; i++) {
-                const row = rows[i];
+            const sheet    = workbook.Sheets[workbook.SheetNames[0]];
+            const rows     = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+            // ── Scan every cell for depth+material pairs ──────────────────────
+            // Works with headerless strata charts (e.g. Study Hall format) where
+            // one column has sequential depths (10, 20, 30…) and another has
+            // material names (Clay, Sand…) in the same row.
+            const candidates = [];
+
+            for (let r = 0; r < rows.length; r++) {
+                const row = rows[r];
                 if (!row || row.length === 0) continue;
-                
-                // Skip rows that are clearly not data (all empty or headers repeated)
-                const nonEmpty = row.filter(cell => cell && String(cell).trim()).length;
-                if (nonEmpty === 0) continue;
-                
-                const startDepthStr = String(row[fromIdx] || '').trim();
-                const endDepthStr = String(row[toIdx] || '').trim();
-                const materialStr = String(row[materialIdx] || '').trim();
-                
-                console.log(`Row ${i}: From="${startDepthStr}" To="${endDepthStr}" Material="${materialStr}"`);
-                
-                // Extract numbers, handling formats like "0-5", "5.5", "5 m", etc.
-                const startDepth = parseFloat(startDepthStr.replace(/[^\d.]/g, ''));
-                const endDepth = parseFloat(endDepthStr.replace(/[^\d.]/g, ''));
-                
-                // Clean material name
-                const material = materialStr
-                    .replace(/[^\w\s-]/g, ' ')
-                    .replace(/\s+/g, ' ')
-                    .trim();
-                
-                if (!isNaN(startDepth) && !isNaN(endDepth) && material && material.length > 1) {
-                    // Skip if material is just numbers
-                    if (/^\d+$/.test(material)) continue;
-                    
-                    // Calculate confidence based on data quality
-                    let confidence = 0.7; // Base confidence for Excel
-                    
-                    // Good material name
-                    if (material.length > 3 && !/^\d+$/.test(material)) {
-                        confidence += 0.1;
+
+                for (let dc = 0; dc < row.length; dc++) {
+                    const raw = String(row[dc]).trim();
+                    if (!raw) continue;
+                    // Must be a plain positive number
+                    if (!/^\d+(\.\d+)?$/.test(raw)) continue;
+                    const depth = parseFloat(raw);
+                    if (depth <= 0 || depth > 5000) continue;
+
+                    // Find a material word in the same row
+                    for (let mc = 0; mc < row.length; mc++) {
+                        if (mc === dc) continue;
+                        const mat = String(row[mc]).trim();
+                        if (!mat || mat.length < 2 || mat.length > 60) continue;
+                        if (!/^[A-Za-z]/.test(mat)) continue;
+                        if (/^\d+(\.\d+)?$/.test(mat)) continue;
+                        // Skip non-geological noise
+                        if (/pipe|screen|pump|bore|tube|well|site|date|client|driller|level|dia|lowering|assembly|plain|ribbed/i.test(mat)) continue;
+
+                        candidates.push({ r, dc, depth, mc, material: mat });
                     }
-                    
-                    // Valid depth range
-                    if (endDepth > startDepth && (endDepth - startDepth) < 1000) {
-                        confidence += 0.1;
-                    }
-                    
-                    // Sequential depths
-                    if (layers.length > 0) {
-                        const prevLayer = layers[layers.length - 1];
-                        if (Math.abs(startDepth - prevLayer.endDepth) < 2) {
-                            confidence += 0.1;
-                        }
-                    }
-                    
-                    totalConfidence += confidence;
-                    validRows++;
-                    
-                    layers.push({
-                        id: generateId(),
-                        startDepth,
-                        endDepth,
-                        material,
-                        color: getColorForMaterial(material),
-                        confidence
-                    });
-                    
-                    console.log('Added layer:', startDepth, '-', endDepth, material);
                 }
             }
-            
-            if (layers.length === 0) {
-                showToast('No valid strata data found in file. Please check the format.', 'error');
-                console.error('No layers extracted. Check console for details.');
+
+            if (candidates.length === 0) {
+                showToast('No strata data found. Ensure the file has depth numbers and material names.', 'error');
                 return;
             }
-            
-            console.log('Extracted', layers.length, 'layers');
-            const avgConfidence = validRows > 0 ? totalConfidence / validRows : 0;
-            showPreviewModal(layers, avgConfidence);
-            
+
+            // ── Pick the (depthCol, matCol) pair with the most rows ───────────
+            const scores = {};
+            for (const c of candidates) {
+                const k = `${c.dc}|${c.mc}`;
+                scores[k] = (scores[k] || 0) + 1;
+            }
+            const [bestDc, bestMc] = Object.entries(scores)
+                .sort((a, b) => b[1] - a[1])[0][0]
+                .split('|').map(Number);
+
+            // ── Extract and sort by depth ─────────────────────────────────────
+            const seen = new Set();
+            const dataRows = candidates
+                .filter(c => c.dc === bestDc && c.mc === bestMc)
+                .sort((a, b) => a.depth - b.depth)
+                .filter(c => { if (seen.has(c.depth)) return false; seen.add(c.depth); return true; });
+
+            if (dataRows.length === 0) {
+                showToast('No valid strata rows found.', 'error');
+                return;
+            }
+
+            // ── Merge consecutive rows with the same material ─────────────────
+            const merged = [];
+            let runMat = dataRows[0].material;
+
+            for (let i = 1; i <= dataRows.length; i++) {
+                const cur = dataRows[i];
+                if (i === dataRows.length || cur.material.toLowerCase() !== runMat.toLowerCase()) {
+                    merged.push({
+                        id:         generateId(),
+                        startDepth: merged.length === 0 ? 0 : merged[merged.length - 1].endDepth,
+                        endDepth:   dataRows[i - 1].depth,
+                        material:   runMat,
+                        color:      getColorForMaterial(runMat),
+                        confidence: 0.9,
+                    });
+                    if (cur) runMat = cur.material;
+                }
+            }
+
+            if (merged.length === 0) {
+                showToast('No valid strata layers extracted.', 'error');
+                return;
+            }
+
+            showPreviewModal(merged, 0.9);
+
         } catch (err) {
             showToast(`Failed to parse Excel file: ${err.message}`, 'error');
             console.error('Excel parse error:', err);
