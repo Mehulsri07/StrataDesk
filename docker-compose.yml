@@ -19,7 +19,6 @@ services:
 
   # ── Express API ─────────────────────────────────────────────────────────────
   api:
-    image: mehul0701/stratadesk-api:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -42,13 +41,14 @@ services:
 
   # ── nginx — frontend + reverse proxy ───────────────────────────────────────
   web:
-    image: mehul0701/stratadesk-web:latest
     build:
       context: .
       dockerfile: nginx/Dockerfile
     restart: unless-stopped
     ports:
       - "3000:80"
+    environment:
+      API_UPSTREAM: "api:3001"   # matches the service name above
     depends_on:
       api:
         condition: service_healthy
