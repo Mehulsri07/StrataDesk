@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { CheckSquare, Square, AlertTriangle, MapPin } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import StrataChart from '@/components/chart/StrataChart
+import StrataChart from '@/components/chart/StrataChart'
 import type { Borewell } from '@/types'
 
 interface BorewellCardProps {
