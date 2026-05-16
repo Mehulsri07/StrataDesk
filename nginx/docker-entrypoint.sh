@@ -1,4 +1,4 @@
-﻿#!/bin/sh
+#!/bin/sh
 # Substitute API_UPSTREAM placeholder with the real value from the environment.
 # Local Docker Compose: API_UPSTREAM defaults to "api:3001"
 # Railway:              set API_UPSTREAM to "<api-service>.railway.internal:3001"
