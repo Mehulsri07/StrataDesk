@@ -1,0 +1,10 @@
+node_modules
+dist
+backend
+database
+.git
+.vscode
+app
+README.md
+docker-compose.yml
+railway.toml
