@@ -60,10 +60,9 @@ export function normaliseBorewell(
   const { groundElevationMSL, waterLevelFt } = borewell
 
   const layers: NormalisedLayer[] = borewell.layers.map(layer => ({
-    soilType: layer.soilType,
-    assembly: layer.assembly,
-    topMSL:    groundElevationMSL - ftToM(layer.fromDepth),
-    bottomMSL: groundElevationMSL - ftToM(layer.toDepth),
+    soilType: layer.material,
+    topMSL:    groundElevationMSL - ftToM(layer.startDepth),
+    bottomMSL: groundElevationMSL - ftToM(layer.endDepth),
   }))
 
   return {

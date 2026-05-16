@@ -12,7 +12,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import * as XLSX from 'xlsx'
 import exifr from 'exifr'
 import { cn } from '@/lib/utils'
-import { getSoilColor } from '@/lib/soilColors'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES

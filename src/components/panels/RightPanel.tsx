@@ -2,7 +2,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Trash2, MapPin, Ruler, CircleDot, Droplets, StickyNote, Plus, ArrowDownToLine, Palette } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useApp } from '@/store/AppContext';
-import { DEFAULT_MATERIALS, getColorForMaterial } from '@/types';
+import { DEFAULT_MATERIALS } from '@/types';
+import { getSoilColor } from '@/lib/soilColors';
 import type { StrataLayer } from '@/types';
 import StrataChart from '../chart/StrataChart';
 
@@ -140,7 +141,7 @@ export default function RightPanel() {
                 startDepth: merged.length === 0 ? 0 : merged[merged.length - 1].endDepth,
                 endDepth: dataRows[i - 1].depth,
                 material: runMat,
-                color: getColorForMaterial(runMat),
+                color: getSoilColor(runMat),
               });
               if (cur) runMat = cur.material;
             }
@@ -500,7 +501,7 @@ function LayerRow({ layer, activeId }: { layer: StrataLayer, activeId: string })
             const selected = allMaterials.find(m => m.name === e.target.value);
             updateLayer(activeId, layer.id, {
               material: e.target.value,
-              color: selected ? selected.color : getColorForMaterial(e.target.value),
+              color: selected ? selected.color : getSoilColor(e.target.value),
             });
           }}
           className="text-xs text-foam bg-white/5 border border-white/10 rounded px-2 py-1.5 focus:outline-none focus:border-core/50 max-w-[110px]"
