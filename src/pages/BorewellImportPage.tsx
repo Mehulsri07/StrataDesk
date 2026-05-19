@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
 import { useApp } from '@/store/AppContext'
 import { generateId } from '@/types'
@@ -6,12 +6,14 @@ import { getSoilColor } from '@/lib/soilColors'
 import { 
   ArrowLeft, FileText, Camera, MapPin, 
   Check, AlertCircle, X, Mountain, Info, Layers,
-  Calendar, Droplets, Target
+  Calendar, Droplets, Target, Map as MapIcon, Navigation
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import * as XLSX from 'xlsx'
 import exifr from 'exifr'
 import { cn } from '@/lib/utils'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -55,6 +57,7 @@ export default function BorewellImportPage() {
   // Preview data
   const [preview, setPreview] = useState<ParsedBorewell | null>(null)
   const [isManual, setIsManual] = useState(false)
+  const [showMapPicker, setShowMapPicker] = useState(false)
 
   const startManualEntry = () => {
     setIsManual(true)
@@ -501,16 +504,17 @@ export default function BorewellImportPage() {
                           </div>
                         </div>
                         <div className="flex flex-col justify-center gap-3">
-                          <div className="p-3 rounded-xl bg-void border border-surface relative">
-                            <p className="text-[9px] text-text-muted uppercase mb-1">GPS Coordinates</p>
-                            <div className="flex items-center gap-2">
+                          {/* Coordinate inputs */}
+                          <div className="p-3 rounded-xl bg-void border border-surface">
+                            <p className="text-[9px] text-text-muted uppercase mb-1.5">GPS Coordinates</p>
+                            <div className="flex items-center gap-2 mb-2">
                               <input 
                                 type="number" 
                                 step="0.000001"
                                 value={preview.lat || ''} 
                                 onChange={e => updatePreview('lat', parseFloat(e.target.value))}
                                 className="w-1/2 bg-transparent border-none p-0 text-xs font-mono text-teal-light focus:ring-0"
-                                placeholder="Lat"
+                                placeholder="Latitude"
                               />
                               <span className="text-text-muted text-[10px]">,</span>
                               <input 
@@ -519,15 +523,29 @@ export default function BorewellImportPage() {
                                 value={preview.lng || ''} 
                                 onChange={e => updatePreview('lng', parseFloat(e.target.value))}
                                 className="w-1/2 bg-transparent border-none p-0 text-xs font-mono text-teal-light focus:ring-0"
-                                placeholder="Lng"
+                                placeholder="Longitude"
                               />
                             </div>
+                            {/* Pick on Map button */}
+                            <button
+                              onClick={() => setShowMapPicker(true)}
+                              className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all"
+                              style={{
+                                background: 'rgba(79, 168, 152, 0.12)',
+                                border: '1px solid rgba(79, 168, 152, 0.3)',
+                                color: '#4fa898',
+                              }}
+                            >
+                              <MapIcon className="w-3 h-3" />
+                              Pick on Map
+                            </button>
                           </div>
+                          {/* Status */}
                           <div className="p-3 rounded-xl bg-void border border-surface">
                             <p className="text-[9px] text-text-muted uppercase mb-1">Status</p>
                             <p className="text-xs text-foam flex items-center gap-1.5">
                               <div className={cn("w-2 h-2 rounded-full", preview.lat ? "bg-teal-light animate-pulse" : "bg-amber-400")} />
-                              {preview.lat ? "Coordinates Valid" : "Coords Missing"}
+                              {preview.lat ? `${preview.lat.toFixed(4)}, ${preview.lng?.toFixed(4)}` : "Coords Missing"}
                             </p>
                           </div>
                         </div>
@@ -689,6 +707,22 @@ export default function BorewellImportPage() {
         </div>
       </main>
 
+      {/* Map Picker Modal */}
+      <AnimatePresence>
+        {showMapPicker && (
+          <MapPickerModal
+            initialLat={preview?.lat ?? 26.8467}
+            initialLng={preview?.lng ?? 80.9462}
+            onConfirm={(lat, lng) => {
+              updatePreview('lat', lat)
+              updatePreview('lng', lng)
+              setShowMapPicker(false)
+            }}
+            onClose={() => setShowMapPicker(false)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Loading Overlay */}
       <AnimatePresence>
         {loading && (
@@ -727,5 +761,182 @@ function RefreshCw(props: any) {
       <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
       <path d="M3 21v-5h5" />
     </svg>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAP PICKER MODAL
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface MapPickerModalProps {
+  initialLat: number
+  initialLng: number
+  onConfirm: (lat: number, lng: number) => void
+  onClose: () => void
+}
+
+function MapPickerModal({ initialLat, initialLng, onConfirm, onClose }: MapPickerModalProps) {
+  const mapContainerRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<L.Map | null>(null)
+  const markerRef = useRef<L.Marker | null>(null)
+  const [pickedLat, setPickedLat] = useState(initialLat)
+  const [pickedLng, setPickedLng] = useState(initialLng)
+
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return
+
+    const map = L.map(mapContainerRef.current, { zoomControl: true }).setView(
+      [initialLat, initialLng],
+      14
+    )
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; CARTO',
+      subdomains: 'abcd',
+      maxZoom: 20,
+    }).addTo(map)
+
+    // Custom pin icon
+    const pinIcon = L.divIcon({
+      className: '',
+      html: `<div style="
+        width: 28px; height: 28px;
+        background: linear-gradient(135deg, #c9933a, #d4a853);
+        border: 3px solid #f5ead0;
+        border-radius: 50% 50% 50% 0;
+        transform: rotate(-45deg);
+        box-shadow: 0 4px 12px rgba(201,147,58,0.5);
+      "></div>`,
+      iconSize: [28, 28],
+      iconAnchor: [14, 28],
+    })
+
+    // Place initial marker
+    const marker = L.marker([initialLat, initialLng], { icon: pinIcon, draggable: true }).addTo(map)
+    markerRef.current = marker
+
+    // Update coords on drag
+    marker.on('dragend', () => {
+      const pos = marker.getLatLng()
+      setPickedLat(pos.lat)
+      setPickedLng(pos.lng)
+    })
+
+    // Move marker on map click
+    map.on('click', (e) => {
+      marker.setLatLng(e.latlng)
+      setPickedLat(e.latlng.lat)
+      setPickedLng(e.latlng.lng)
+    })
+
+    mapRef.current = map
+
+    return () => {
+      map.remove()
+      mapRef.current = null
+    }
+  }, [])
+
+  // Get user's current location
+  const handleMyLocation = () => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const { latitude, longitude } = pos.coords
+      mapRef.current?.flyTo([latitude, longitude], 16, { duration: 1 })
+      markerRef.current?.setLatLng([latitude, longitude])
+      setPickedLat(latitude)
+      setPickedLng(longitude)
+    })
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0, y: 16 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 16 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+        className="w-full max-w-2xl rounded-2xl overflow-hidden flex flex-col"
+        style={{
+          background: '#13161e',
+          border: '1px solid rgba(169, 214, 229, 0.12)',
+          boxShadow: '0 24px 80px rgba(0,0,0,0.7)',
+          maxHeight: '85vh',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 flex-shrink-0">
+          <div>
+            <h3 className="text-foam font-semibold text-sm">Pick Location on Map</h3>
+            <p className="text-text-muted text-[11px] mt-0.5">Click anywhere or drag the pin to set coordinates</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-shallows hover:text-foam hover:bg-white/5 transition-all"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Map */}
+        <div className="relative flex-1" style={{ minHeight: 380 }}>
+          <div ref={mapContainerRef} className="absolute inset-0" />
+
+          {/* My Location button */}
+          <button
+            onClick={handleMyLocation}
+            className="absolute top-3 right-3 z-[500] flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+            style={{
+              background: 'rgba(15, 17, 23, 0.92)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(169, 214, 229, 0.15)',
+              color: '#4fa898',
+            }}
+          >
+            <Navigation className="w-3.5 h-3.5" />
+            My Location
+          </button>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-5 py-4 border-t border-white/5 flex-shrink-0"
+          style={{ background: 'rgba(15,17,23,0.6)' }}>
+          <div className="flex items-center gap-2">
+            <MapPin className="w-3.5 h-3.5 text-core" />
+            <span className="text-xs font-mono text-teal-light">
+              {pickedLat.toFixed(6)}, {pickedLng.toFixed(6)}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl text-sm text-text-muted hover:text-foam transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => onConfirm(pickedLat, pickedLng)}
+              className="px-5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2"
+              style={{
+                background: 'linear-gradient(135deg, #c9933a, #d4a853)',
+                color: '#0f1117',
+                boxShadow: '0 2px 12px rgba(201,147,58,0.3)',
+              }}
+            >
+              <Check className="w-4 h-4" />
+              Confirm Location
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
   )
 }
