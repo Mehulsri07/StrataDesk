@@ -5,32 +5,18 @@ Borewell strata visualization — React + Express + PostgreSQL.
 ## Structure
 
 ```
-src/            React frontend (Vite + TypeScript + Tailwind)
-backend/        Express REST API (Node 20 + PostgreSQL)
-database/       PostgreSQL init schema
-nginx/          Reverse proxy + frontend build (Docker only)
-docker-compose.yml
+src/        React frontend (Vite + TypeScript + Tailwind)
+backend/    Express REST API (Node 20 + PostgreSQL)
+database/   PostgreSQL init schema
 ```
 
 ---
 
-## Option A — Docker (recommended, full stack in one command)
-
-```bash
-docker compose up --build
-```
-
-Open **http://localhost:3000**
-
-All three services start automatically: PostgreSQL → API → nginx (frontend).
-
----
-
-## Option B — Run locally without Docker
+## Run locally
 
 ### 1. Start PostgreSQL
 
-You need a local Postgres instance. The easiest way:
+You need a local Postgres instance. Example using Docker:
 
 ```bash
 docker run -d \
@@ -70,16 +56,10 @@ npm run dev
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | — | Full Postgres URL (Railway sets this; takes priority over individual vars) |
-| `DB_HOST` | `db` | Postgres host (Docker) or `localhost` (local) |
+| `DATABASE_URL` | — | Full Postgres URL (takes priority over individual vars) |
+| `DB_HOST` | `localhost` | Postgres host |
 | `DB_PORT` | `5432` | Postgres port |
 | `DB_NAME` | `stratadesk` | Database name |
 | `DB_USER` | `stratadesk` | Database user |
 | `DB_PASSWORD` | `stratadesk` | Database password |
 | `PORT` | `3001` | API listen port |
-
----
-
-## Deploy to Railway
-
-See the Railway section in the previous docs — set `DATABASE_URL = ${{Postgres.DATABASE_URL}}` and `PORT = 3001` on the API service. The frontend/nginx service needs `API_UPSTREAM` set to the API's internal hostname.
