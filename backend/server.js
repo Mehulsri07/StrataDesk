@@ -1,4 +1,5 @@
 require('dotenv').config();
+
 const express = require('express');
 const cors    = require('cors');
 const { Pool } = require('pg');
@@ -8,20 +9,14 @@ const PORT = process.env.PORT || 3001;
 
 // ── DB Connection ───────────────────────────────────────────────────────────
 // Support both DATABASE_URL (Railway/production) and individual DB_* vars (Docker Compose)
-const poolConfig = process.env.DATABASE_URL
-  ? {
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
-    }
-  : {
-      host:     process.env.DB_HOST     || 'localhost',
-      port:     parseInt(process.env.DB_PORT || '5432'),
-      database: process.env.DB_NAME     || 'stratadesk',
-      user:     process.env.DB_USER     || 'stratadesk',
-      password: process.env.DB_PASSWORD || 'stratadesk',
-    };
 
-const pool = new Pool(poolConfig);
+const pool = new Pool({
+  host: process.env.DB_HOST || 'postgres',
+  port: parseInt(process.env.DB_PORT || '5432'),
+  database: process.env.DB_NAME || 'StrataDesk',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+});
 
 // ── Middleware ───────────────────────────────────────────────────────────────
 app.use(cors());
@@ -34,40 +29,66 @@ app.use((req, res, next) => {
 });
 
 // ── Schema bootstrap ─────────────────────────────────────────────────────────
-async function initSchema() {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS borewells (
-        id                         TEXT PRIMARY KEY,
-        name                       TEXT NOT NULL,
-        location                   TEXT,
-        latitude                   DOUBLE PRECISION DEFAULT 0,
-        longitude                  DOUBLE PRECISION DEFAULT 0,
-        diameter                   INTEGER DEFAULT 8,
-        total_depth                DOUBLE PRECISION DEFAULT 0,
-        water_level                DOUBLE PRECISION,
-        notes                      TEXT,
-        selected_for_cross_section BOOLEAN DEFAULT FALSE,
-        created_at                 TIMESTAMPTZ DEFAULT NOW(),
-        updated_at                 TIMESTAMPTZ DEFAULT NOW()
-      );
+async function initSchema(retries = 10) {
 
-      CREATE TABLE IF NOT EXISTS layers (
-        id           TEXT PRIMARY KEY,
-        borewell_id  TEXT NOT NULL REFERENCES borewells(id) ON DELETE CASCADE,
-        start_depth  DOUBLE PRECISION NOT NULL,
-        end_depth    DOUBLE PRECISION NOT NULL,
-        material     TEXT NOT NULL,
-        color        TEXT NOT NULL DEFAULT '#78909C',
-        sort_order   INTEGER DEFAULT 0
+  while (retries > 0) {
+
+    try {
+
+      console.log(`Attempting DB connection... (${11 - retries}/10)`);
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS borewells (
+          id                         TEXT PRIMARY KEY,
+          name                       TEXT NOT NULL,
+          location                   TEXT,
+          latitude                   DOUBLE PRECISION DEFAULT 0,
+          longitude                  DOUBLE PRECISION DEFAULT 0,
+          diameter                   INTEGER DEFAULT 8,
+          total_depth                DOUBLE PRECISION DEFAULT 0,
+          water_level                DOUBLE PRECISION,
+          notes                      TEXT,
+          selected_for_cross_section BOOLEAN DEFAULT FALSE,
+          created_at                 TIMESTAMPTZ DEFAULT NOW(),
+          updated_at                 TIMESTAMPTZ DEFAULT NOW()
+        );
+      `);
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS layers (
+          id           TEXT PRIMARY KEY,
+          borewell_id  TEXT NOT NULL REFERENCES borewells(id) ON DELETE CASCADE,
+          start_depth  DOUBLE PRECISION NOT NULL,
+          end_depth    DOUBLE PRECISION NOT NULL,
+          material     TEXT NOT NULL,
+          color        TEXT NOT NULL DEFAULT '#78909C',
+          sort_order   INTEGER DEFAULT 0
+        );
+      `);
+
+      console.log('Schema ready ✅');
+
+      return;
+
+    } catch (err) {
+
+      console.error('Database connection failed:');
+      console.error(err.message);
+
+      retries--;
+
+      if (retries === 0) {
+        throw err;
+      }
+
+      console.log('Waiting 5 seconds before retrying...\n');
+
+      await new Promise(resolve =>
+        setTimeout(resolve, 5000)
       );
-    `);
-    console.log('Schema ready');
-  } catch (err) {
-    console.error('Schema init failed:', err);
+    }
   }
 }
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function rowToBorewell(row, layers = []) {
   return {
@@ -112,21 +133,62 @@ async function fetchBorewellWithLayers(client, id) {
 app.get('/', (req, res) => res.send('StrataDesk API Running'));
 
 // GET /api/health
-app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/api/health', async (req, res) => {
+
+  try {
+
+    await pool.query('SELECT 1');
+
+    res.json({
+      status: 'healthy',
+      database: 'connected'
+    });
+
+  } catch (err) {
+
+    res.status(500).json({
+      status: 'unhealthy',
+      database: 'disconnected'
+    });
+
+  }
+});
 
 // GET /api/borewells
 app.get('/api/borewells', async (req, res) => {
   try {
-    const bws  = await pool.query('SELECT * FROM borewells ORDER BY created_at DESC');
-    const lyrs = await pool.query('SELECT * FROM layers ORDER BY sort_order, start_depth');
+
+    console.log("Fetching borewells...");
+    const bws = await pool.query(
+      'SELECT * FROM borewells ORDER BY created_at DESC'
+    );
+
+    console.log("Fetching layers...");
+    const lyrs = await pool.query(
+      'SELECT * FROM layers ORDER BY sort_order, start_depth'
+    );
+
+    console.log("Queries successful");
+
     const layerMap = {};
+
     lyrs.rows.forEach(l => {
       (layerMap[l.borewell_id] = layerMap[l.borewell_id] || []).push(l);
     });
-    res.json(bws.rows.map(b => rowToBorewell(b, layerMap[b.id] || [])));
+
+    res.json(
+      bws.rows.map(b => rowToBorewell(b, layerMap[b.id] || []))
+    );
+
   } catch (err) {
+
+    console.error("FULL DATABASE ERROR:");
     console.error(err);
-    res.status(500).json({ error: 'Failed to fetch borewells' });
+
+    res.status(500).json({
+      error: 'Internal server error'
+    });
+
   }
 });
 

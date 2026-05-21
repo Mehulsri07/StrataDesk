@@ -1,0 +1,65 @@
+services:
+
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    container_name: stratadesk-postgres
+
+    environment:
+      POSTGRES_DB: StrataDesk
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: P@ssw0rd26
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - stratadesk_pgdata:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d StrataDesk"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  backend:
+    restart: unless-stopped
+    build:
+      context: ./backend
+
+    container_name: stratadesk-backend
+
+    ports:
+      - "3001:3001"
+
+    env_file:
+      - ./backend/.env
+
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: StrataDesk
+      DB_USER: postgres
+      DB_PASSWORD: P@ssw0rd26
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend.prod
+
+    container_name: stratadesk-frontend
+
+    ports:
+      - "80:80"
+
+    depends_on:
+      - backend
+    
+volumes:
+  stratadesk_pgdata:
