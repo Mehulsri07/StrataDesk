@@ -38,7 +38,7 @@ jobs:
       - name: Check Backend Syntax
         working-directory: ./backend
         run: node --check server.js
-        
+
       - name: Build Backend Docker Image
         run: docker build -t stratadesk-backend ./backend
 
