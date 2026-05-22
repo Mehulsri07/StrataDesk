@@ -44,3 +44,6 @@ jobs:
 
       - name: Build Frontend Docker Image
         run: docker build -t stratadesk-frontend -f Dockerfile.frontend.prod .
+
+      - name: Validate Docker Compose
+        run: docker compose config
