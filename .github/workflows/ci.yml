@@ -2,32 +2,25 @@ name: CI Pipeline
 
 on:
   push:
-    branches:
-      - main
-
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
-
   build-and-test:
-
     runs-on: ubuntu-latest
 
     env:
       POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
       POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-
-      DB_HOST: ${{ secrets.DB_HOST }}
+      # ❌ REMOVED: DB_HOST — hardcoded as 'postgres' in docker-compose.yml
       DB_PORT: ${{ secrets.DB_PORT }}
       DB_NAME: ${{ secrets.DB_NAME }}
       DB_USER: ${{ secrets.DB_USER }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
     steps:
-
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -39,7 +32,6 @@ jobs:
         with:
           node-version: 22
           cache: 'npm'
-      
 
       - name: Install Frontend Dependencies
         run: npm ci
@@ -62,41 +54,37 @@ jobs:
         run: docker build -t stratadesk-frontend -f Dockerfile.frontend.prod .
 
       - name: Validate Docker Compose
-        env:
-          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
-          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-
         run: docker compose config
 
       - name: Start Full Stack
-        run: docker compose up -d || true
-
-      - name: Wait For Services
-        run: sleep 20
-
-      - name: Show Backend Logs
-        run: docker logs stratadesk-backend
-
-      - name: Show Postgres Logs
-        run: docker logs stratadesk-postgres
+        run: docker compose up -d
+        
+      - name: Wait For Backend
+        run: |
+          echo "Waiting for backend to be ready..."
+          for i in $(seq 1 24); do
+            if curl -sf http://localhost:3001/api/health > /dev/null 2>&1; then
+              echo "✅ Backend ready after $((i * 5))s"
+              exit 0
+            fi
+            echo "Attempt $i/24 — waiting 5s..."
+            sleep 5
+          done
+          echo "❌ Backend never became ready — dumping logs"
+          docker logs stratadesk-postgres
+          docker logs stratadesk-backend
+          exit 1
 
       - name: Test Backend API
-        run: curl http://localhost:3001/api/borewells || true
+        run: curl -sf http://localhost:3001/api/borewells
 
       - name: Test Frontend
-        run: curl http://localhost || true
+        run: curl -sf http://localhost
 
       - name: Show Running Containers
-        run: docker ps
+        if: always()
+        run: docker ps -a
 
       - name: Show Container Logs
+        if: always()
         run: docker compose logs
-
-      - name: Show Container Status
-        run: docker ps -a
