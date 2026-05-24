@@ -80,6 +80,15 @@ jobs:
       - name: Wait For Services
         run: sleep 20
 
+      - name: Show Running Containers
+        run: docker ps -a
+
+      - name: Show Backend Logs
+        run: docker logs stratadesk-backend
+
+      - name: Show Postgres Logs
+        run: docker logs stratadesk-postgres
+
       - name: Test Backend API
         run: curl http://localhost:3001/api/borewells
 
