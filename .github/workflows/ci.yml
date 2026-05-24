@@ -79,3 +79,9 @@ jobs:
 
       - name: Show Running Containers
         run: docker ps
+
+      - name: Show Container Logs
+        run: docker compose logs
+
+      - name: Show Container Status
+        run: docker ps -a
