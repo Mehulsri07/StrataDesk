@@ -80,6 +80,12 @@ jobs:
       - name: Wait For Services
         run: sleep 20
 
+      - name: Test Backend API
+        run: curl http://localhost:3001/api/borewells
+
+      - name: Test Frontend
+        run: curl http://localhost
+
       - name: Show Running Containers
         run: docker ps
 
