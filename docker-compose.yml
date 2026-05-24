@@ -5,11 +5,6 @@ services:
     restart: unless-stopped
     container_name: stratadesk-postgres
 
-    environment:
-      POSTGRES_DB: StrataDesk
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: P@ssw0rd26
-
     ports:
       - "5432:5432"
 
@@ -35,13 +30,6 @@ services:
 
     env_file:
       - ./backend/.env
-
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: StrataDesk
-      DB_USER: postgres
-      DB_PASSWORD: P@ssw0rd26
 
     depends_on:
       postgres:
