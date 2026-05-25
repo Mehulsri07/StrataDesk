@@ -1,9 +1,36 @@
 services:
 
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    container_name: stratadesk-postgres
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - stratadesk_pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
   backend:
     image: ghcr.io/mehulsri07/stratadesk-backend:latest
+    build:
+      context: ./backend
 
     restart: unless-stopped
+    container_name: stratadesk-backend
 
     ports:
       - "3001:3001"
@@ -27,35 +54,18 @@ services:
 
   frontend:
     image: ghcr.io/mehulsri07/stratadesk-frontend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend.prod
 
     restart: unless-stopped
+    container_name: stratadesk-frontend
 
     ports:
       - "80:80"
 
     depends_on:
       - backend
-
-  postgres:
-    image: postgres:17
-
-    restart: unless-stopped
-
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-
-    volumes:
-      - stratadesk_pgdata:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
-
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-      start_period: 30s
 
 volumes:
   stratadesk_pgdata:

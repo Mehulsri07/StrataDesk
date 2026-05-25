@@ -1,8 +1,37 @@
+# Dependencies
 node_modules/
+backend/node_modules/
+
+# Build output
 dist/
+build/
+
+# Vite cache
+.vite/
+
+# Environment files
 .env
+.env.local
+.env.*.local
+backend/.env
+
+# Logs
 *.log
+npm-debug.log*
+
+# OS
 .DS_Store
 Thumbs.db
-database/samples/*.xlsx
-database/samples/*.xls
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+.dockerignore
+
+# TypeScript
+*.tsbuildinfo
+node_modules/.tmp/
