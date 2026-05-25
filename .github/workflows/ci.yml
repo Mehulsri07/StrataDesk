@@ -96,6 +96,20 @@ jobs:
       - name: Test Backend API
         run: curl -sf http://localhost:3001/api/borewells
 
+      - name: Wait For Frontend
+        run: |
+          for i in $(seq 1 12); do
+          if curl -sf http://localhost:80 > /dev/null 2>&1; then
+          echo "✅ Frontend ready"
+          exit 0
+          fi
+          echo "Attempt $i/12 — waiting 3s..."
+          sleep 3
+          done
+          echo "❌ Frontend never became ready"
+          docker logs stratadesk-frontend
+          exit 1
+
       - name: Test Frontend
         run: |
           response=$(curl -s http://localhost:80)
