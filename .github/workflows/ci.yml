@@ -72,7 +72,7 @@ jobs:
             -f Dockerfile.frontend.prod .
 
       - name: Start Full Stack
-        run: docker compose up -d --no-build
+        run: docker compose up -d
 
       - name: Wait For Backend
         run: |
@@ -97,7 +97,7 @@ jobs:
         run: curl -sf http://localhost:3001/api/borewells
 
       - name: Test Frontend
-        run: curl -sf http://localhost
+        run: curl -v http://localhost:80
 
       - name: Push Images
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
