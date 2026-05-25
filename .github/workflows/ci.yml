@@ -99,7 +99,7 @@ jobs:
       - name: Test Frontend
         run: |
           response=$(curl -s http://localhost:80)
-
+          echo "$response"
           echo "$response" | grep -i "<html"
 
       - name: Push Images
