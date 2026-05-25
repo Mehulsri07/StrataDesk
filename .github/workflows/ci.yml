@@ -97,7 +97,10 @@ jobs:
         run: curl -sf http://localhost:3001/api/borewells
 
       - name: Test Frontend
-        run: curl -v http://localhost:80
+        run: |
+          response=$(curl -s http://localhost:80)
+
+          echo "$response" | grep -i "<html"
 
       - name: Push Images
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
