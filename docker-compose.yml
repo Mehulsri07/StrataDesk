@@ -1,52 +1,61 @@
 services:
 
-  postgres:
-    image: postgres:17
-    restart: unless-stopped
-    container_name: stratadesk-postgres
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-      - stratadesk_pgdata:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql  # ← ADD THIS
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-      start_period: 30s
-
   backend:
+    image: ghcr.io/mehulsri07/stratadesk-backend:latest
+
     restart: unless-stopped
-    build:
-      context: ./backend
-    container_name: stratadesk-backend
+
     ports:
       - "3001:3001"
+
     environment:
-      DB_HOST: postgres        # hardcoded — never comes from secrets
+      DB_HOST: postgres
       DB_PORT: ${DB_PORT}
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
+
     depends_on:
       postgres:
         condition: service_healthy
 
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   frontend:
+    image: ghcr.io/YOUR_GITHUB_USERNAME/stratadesk-frontend:latest
+
     restart: unless-stopped
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend.prod
-    container_name: stratadesk-frontend
+
     ports:
       - "80:80"
+
     depends_on:
       - backend
+
+  postgres:
+    image: postgres:17
+
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    volumes:
+      - stratadesk_pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
 
 volumes:
   stratadesk_pgdata:

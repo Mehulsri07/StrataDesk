@@ -3,8 +3,17 @@ name: CI Pipeline
 on:
   push:
     branches: [main]
+
   pull_request:
     branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: ${{ github.repository_owner }}
 
 jobs:
   build-and-test:
@@ -14,7 +23,7 @@ jobs:
       POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
       POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-      # ❌ REMOVED: DB_HOST — hardcoded as 'postgres' in docker-compose.yml
+
       DB_PORT: ${{ secrets.DB_PORT }}
       DB_NAME: ${{ secrets.DB_NAME }}
       DB_USER: ${{ secrets.DB_USER }}
@@ -24,55 +33,64 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set NPM Registry
-        run: npm config set registry https://registry.npmjs.org/
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
+          cache: npm
 
-      - name: Install Frontend Dependencies
-        run: npm ci
+      - name: Install & Build Frontend
+        run: |
+          npm ci
+          npm run build
 
-      - name: Build Frontend
-        run: npm run build
-
-      - name: Install Backend Dependencies
+      - name: Install & Check Backend
         working-directory: ./backend
-        run: npm install
+        run: |
+          npm ci
+          node --check server.js
 
-      - name: Check Backend Syntax
-        working-directory: ./backend
-        run: node --check server.js
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Backend Docker Image
-        run: docker build -t stratadesk-backend ./backend
+      - name: Build Backend Image
+        run: |
+          docker build \
+            -t ghcr.io/${{ env.OWNER }}/stratadesk-backend:${{ github.sha }} \
+            -t ghcr.io/${{ env.OWNER }}/stratadesk-backend:latest \
+            ./backend
 
-      - name: Build Frontend Docker Image
-        run: docker build -t stratadesk-frontend -f Dockerfile.frontend.prod .
-
-      - name: Validate Docker Compose
-        run: docker compose config
+      - name: Build Frontend Image
+        run: |
+          docker build \
+            -t ghcr.io/${{ env.OWNER }}/stratadesk-frontend:${{ github.sha }} \
+            -t ghcr.io/${{ env.OWNER }}/stratadesk-frontend:latest \
+            -f Dockerfile.frontend.prod .
 
       - name: Start Full Stack
-        run: docker compose up -d
-        
+        run: docker compose up -d --no-build
+
       - name: Wait For Backend
         run: |
-          echo "Waiting for backend to be ready..."
           for i in $(seq 1 24); do
             if curl -sf http://localhost:3001/api/health > /dev/null 2>&1; then
-              echo "✅ Backend ready after $((i * 5))s"
+              echo "Backend ready"
               exit 0
             fi
-            echo "Attempt $i/24 — waiting 5s..."
+
+            echo "Attempt $i/24 - waiting 5s..."
             sleep 5
           done
-          echo "❌ Backend never became ready — dumping logs"
+
+          echo "Backend failed to start"
+
           docker logs stratadesk-postgres
           docker logs stratadesk-backend
+
           exit 1
 
       - name: Test Backend API
@@ -81,10 +99,19 @@ jobs:
       - name: Test Frontend
         run: curl -sf http://localhost
 
-      - name: Show Running Containers
-        if: always()
-        run: docker ps -a
+      - name: Push Images
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          docker push ghcr.io/${{ env.OWNER }}/stratadesk-backend:${{ github.sha }}
+          docker push ghcr.io/${{ env.OWNER }}/stratadesk-backend:latest
 
-      - name: Show Container Logs
-        if: always()
+          docker push ghcr.io/${{ env.OWNER }}/stratadesk-frontend:${{ github.sha }}
+          docker push ghcr.io/${{ env.OWNER }}/stratadesk-frontend:latest
+
+      - name: Dump Logs on Failure
+        if: failure()
         run: docker compose logs
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
