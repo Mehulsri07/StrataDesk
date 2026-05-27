@@ -97,7 +97,10 @@ jobs:
           exit 1
 
       - name: Test Backend API
-        run: curl -sf http://localhost:3001/api/borewells
+        run: |
+          curl -sf \
+            -H "Authorization: Bearer $API_TOKEN" \
+            http://localhost:3001/api/borewells
 
       - name: Wait For Frontend
         run: |
