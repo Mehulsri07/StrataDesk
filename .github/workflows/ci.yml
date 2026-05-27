@@ -29,6 +29,9 @@ jobs:
       DB_USER: ${{ secrets.DB_USER }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
+      API_TOKEN: ${{ secrets.API_TOKEN }}
+      GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
