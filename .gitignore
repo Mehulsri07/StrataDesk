@@ -35,3 +35,11 @@ Thumbs.db
 # TypeScript
 *.tsbuildinfo
 node_modules/.tmp/
+
+#Folders
+keys/
+
+# Load test results (Part 5B)
+load-tests/logs/*.json
+load-tests/logs/*.csv
+load-tests/logs/*.log

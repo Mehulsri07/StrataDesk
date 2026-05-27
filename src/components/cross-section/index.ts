@@ -6,4 +6,4 @@ export { CrossSectionView, CrossSectionView as CrossSection } from './CrossSecti
 export type { CrossSectionViewProps } from './CrossSectionView'
 export type { CrossSectionBorewell } from './types'
 export { haversineDistance, ftToM, mToFt, formatDistance } from './geoUtils'
-export { getSoilColor } from './interpolate'
+export { getSoilColor } from '@/lib/soilColors'

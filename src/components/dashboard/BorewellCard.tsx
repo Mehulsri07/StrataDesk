@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CheckSquare, Square, AlertTriangle, MapPin } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -12,7 +13,7 @@ interface BorewellCardProps {
   onFocus: () => void
 }
 
-export function BorewellCard({ bw, isSelected, isFocused, onToggle, onFocus }: BorewellCardProps) {
+export const BorewellCard = memo(function BorewellCard({ bw, isSelected, isFocused, onToggle, onFocus }: BorewellCardProps) {
   const date = new Date(bw.createdAt).toLocaleDateString()
   
   return (
@@ -98,9 +99,9 @@ export function BorewellCard({ bw, isSelected, isFocused, onToggle, onFocus }: B
       </AnimatePresence>
     </motion.div>
   )
-}
+});
 
-function MiniStrataPreview({ layers, totalDepth }: { layers: any[], totalDepth: number }) {
+const MiniStrataPreview = memo(function MiniStrataPreview({ layers, totalDepth }: { layers: any[], totalDepth: number }) {
   if (!layers.length) return <div className="h-1.5 w-full bg-surface/20 rounded" />
   
   return (
@@ -121,4 +122,4 @@ function MiniStrataPreview({ layers, totalDepth }: { layers: any[], totalDepth: 
       })}
     </div>
   )
-}
+});

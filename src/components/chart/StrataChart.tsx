@@ -1,13 +1,15 @@
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 import type { Borewell } from '@/types';
 import { lightenColor, darkenColor, generateDepthTicks } from '@/types';
+
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 interface StrataChartProps {
   borewell: Borewell;
   compact?: boolean;
 }
 
-export default function StrataChart({ borewell, compact = false }: StrataChartProps) {
+const StrataChartInner = memo(function StrataChartInner({ borewell, compact = false }: StrataChartProps) {
   const chart = useMemo(() => {
     if (!borewell || borewell.layers.length === 0) return null;
 
@@ -139,4 +141,14 @@ export default function StrataChart({ borewell, compact = false }: StrataChartPr
       {chart}
     </div>
   );
-}
+});
+
+const StrataChart = memo(function StrataChart(props: StrataChartProps) {
+  return (
+    <ErrorBoundary>
+      <StrataChartInner {...props} />
+    </ErrorBoundary>
+  );
+});
+
+export default StrataChart;

@@ -41,6 +41,7 @@ export interface StrataNode {
   bottom: number; // ft below ground surface
   material: string;
   originalId: string;
+  normalizedMaterial: string;
 }
 
 /**
@@ -113,12 +114,22 @@ function getTension(material: string): number {
 
 // ─── Correlation Scoring ──────────────────────────────────────────────────────
 
-export function calculateCorrelationScore(a: StrataLayer, b: StrataLayer): number {
+function calculateCorrelationScoreFast(
+  normMatA: string, startA: number, endA: number,
+  normMatB: string, startB: number, endB: number
+): number {
   let score = 0;
-  if (normalizeMaterial(a.material) === normalizeMaterial(b.material)) score += 60;
-  score += Math.max(0, 30 - Math.abs(a.startDepth - b.startDepth));
-  score += Math.max(0, 10 - Math.abs((a.endDepth - a.startDepth) - (b.endDepth - b.startDepth)));
+  if (normMatA === normMatB) score += 60;
+  score += Math.max(0, 30 - Math.abs(startA - startB));
+  score += Math.max(0, 10 - Math.abs((endA - startA) - (endB - startB)));
   return score;
+}
+
+export function calculateCorrelationScore(a: StrataLayer, b: StrataLayer): number {
+  return calculateCorrelationScoreFast(
+    normalizeMaterial(a.material), a.startDepth, a.endDepth,
+    normalizeMaterial(b.material), b.startDepth, b.endDepth
+  );
 }
 
 // ─── 1. Correlate Layers (Local Sequential) ───────────────────────────────────
@@ -140,6 +151,7 @@ function buildCorrelatedChains(
         bottom:      l.endDepth,
         material:    l.material,
         originalId:  l.id,
+        normalizedMaterial: normalizeMaterial(l.material),
       }))
       .sort((a, b) => a.top - b.top)
   );
@@ -161,9 +173,9 @@ function buildCorrelatedChains(
         let bestScore = -1, bestNode: StrataNode | null = null;
         for (const c of bhNodes[j]) {
           if (used[j].has(c.originalId)) continue;
-          const score = calculateCorrelationScore(
-            { material: cur.material, startDepth: cur.top, endDepth: cur.bottom, id: '', color: '' },
-            { material: c.material,   startDepth: c.top,   endDepth: c.bottom,   id: '', color: '' },
+          const score = calculateCorrelationScoreFast(
+            cur.normalizedMaterial, cur.top, cur.bottom,
+            c.normalizedMaterial,   c.top,   c.bottom
           );
           if (score > 40 && score > bestScore) { bestScore = score; bestNode = c; }
         }
@@ -177,9 +189,9 @@ function buildCorrelatedChains(
         let bestScore = -1, bestNode: StrataNode | null = null;
         for (const c of bhNodes[j]) {
           if (used[j].has(c.originalId)) continue;
-          const score = calculateCorrelationScore(
-            { material: cur.material, startDepth: cur.top, endDepth: cur.bottom, id: '', color: '' },
-            { material: c.material,   startDepth: c.top,   endDepth: c.bottom,   id: '', color: '' },
+          const score = calculateCorrelationScoreFast(
+            cur.normalizedMaterial, cur.top, cur.bottom,
+            c.normalizedMaterial,   c.top,   c.bottom
           );
           if (score > 40 && score > bestScore) { bestScore = score; bestNode = c; }
         }
@@ -226,16 +238,33 @@ function enforceContinuity(chains: ContinuousStrata[], bhCount: number): void {
 function applyPinchOuts(chains: ContinuousStrata[], xPositions: number[]): void {
   const bhCount = xPositions.length;
   for (const chain of chains) {
+    const originalNodes = [...chain.nodes];
     for (let i = 0; i < bhCount; i++) {
-      if (chain.nodes[i] !== null) continue;
-      const left  = i > 0           ? chain.nodes[i - 1] : null;
-      const right = i < bhCount - 1 ? chain.nodes[i + 1] : null;
+      if (originalNodes[i] !== null) continue;
+      const left  = i > 0           ? originalNodes[i - 1] : null;
+      const right = i < bhCount - 1 ? originalNodes[i + 1] : null;
       if (left && !right) {
         const mid = (left.top + left.bottom) / 2;
-        chain.nodes[i] = { boreholeIdx: i, x: xPositions[i], top: mid, bottom: mid, material: chain.material, originalId: 'pinch' };
+        chain.nodes[i] = {
+          boreholeIdx: i,
+          x: xPositions[i],
+          top: mid,
+          bottom: mid,
+          material: chain.material,
+          originalId: 'pinch',
+          normalizedMaterial: normalizeMaterial(chain.material),
+        };
       } else if (!left && right) {
         const mid = (right.top + right.bottom) / 2;
-        chain.nodes[i] = { boreholeIdx: i, x: xPositions[i], top: mid, bottom: mid, material: chain.material, originalId: 'pinch' };
+        chain.nodes[i] = {
+          boreholeIdx: i,
+          x: xPositions[i],
+          top: mid,
+          bottom: mid,
+          material: chain.material,
+          originalId: 'pinch',
+          normalizedMaterial: normalizeMaterial(chain.material),
+        };
       }
     }
   }
@@ -346,6 +375,7 @@ export function buildCrossSection(
   mode: 'smooth' | 'strict',
   svgDims?: { marginY: number; chartH: number; svgH: number },
 ): LayerPolygon[] {
+  const start = (typeof import.meta !== 'undefined' && import.meta.env?.DEV) ? performance.now() : 0;
   if (boreholes.length < 2) return [];
 
   // Build the y-scale: prefer MSL-corrected when dims are provided
@@ -402,6 +432,16 @@ export function buildCrossSection(
   // 6. Generate paths
   for (const poly of polygons) {
     poly.path = pointsToPath(poly.topCurve, poly.bottomCurve);
+  }
+
+  if (typeof import.meta !== 'undefined' && import.meta.env?.DEV) {
+    const elapsed = performance.now() - start;
+    console.log(`CrossSection build: ${elapsed.toFixed(2)} ms`);
+    if (typeof window !== 'undefined') {
+      const win = window as any;
+      win._strataPerfMetrics = win._strataPerfMetrics || {};
+      win._strataPerfMetrics.crossSectionBuildTime = elapsed;
+    }
   }
 
   return polygons;

@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, memo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet.markercluster';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, MapPin, Navigation, Target } from 'lucide-react';
 import { useApp } from '@/store/AppContext';
@@ -42,10 +45,11 @@ const activeBorewellIcon = L.divIcon({
   popupAnchor: [0, -55],
 });
 
-export default function StrataMap() {
+function StrataMap() {
   const { state, dispatch, setActiveBorewell, setPendingLatLng, toggleCrossSection, showToast } = useApp();
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<Record<string, L.Marker>>({});
+  const clusterGroupRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -111,6 +115,16 @@ export default function StrataMap() {
       }
     });
 
+    // Initialize marker cluster group
+    const markerClusterGroup = (L as any).markerClusterGroup({
+      showCoverageOnHover: false,
+      zoomToBoundsOnClick: true,
+      spiderfyOnMaxZoom: true,
+      maxClusterRadius: 40,
+    });
+    markerClusterGroup.addTo(map);
+    clusterGroupRef.current = markerClusterGroup;
+
     mapRef.current = map;
 
     // Expose on window so App.tsx can call invalidateSize after panel transitions
@@ -119,27 +133,34 @@ export default function StrataMap() {
     return () => {
       map.remove();
       mapRef.current = null;
+      clusterGroupRef.current = null;
       delete (window as unknown as Record<string, unknown>)._leafletMap;
     };
-  }, []);
+  }, [dispatch, setPendingLatLng, showToast]);
 
   // Update markers when borewells change
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    const clusterGroup = clusterGroupRef.current;
+    if (!map || !clusterGroup) return;
 
-    // Remove old markers
-    Object.values(markersRef.current).forEach(m => map.removeLayer(m));
-    markersRef.current = {};
+    const currentBwIds = new Set(state.borewells.map(b => b.id));
 
-    // Add new markers
+    // 1. Remove markers for deleted borewells
+    Object.keys(markersRef.current).forEach(id => {
+      if (!currentBwIds.has(id)) {
+        clusterGroup.removeLayer(markersRef.current[id]);
+        delete markersRef.current[id];
+      }
+    });
+
+    // 2. Add or update markers incrementally
     state.borewells.forEach(bw => {
       if (!bw.latitude || !bw.longitude) return;
 
       const isActive = bw.id === state.activeBorewellId;
-      const marker = L.marker([bw.latitude, bw.longitude], {
-        icon: isActive ? activeBorewellIcon : borewellIcon,
-      }).addTo(map);
+      const targetIcon = isActive ? activeBorewellIcon : borewellIcon;
+      const latLng: [number, number] = [bw.latitude, bw.longitude];
 
       const popupContent = `
         <div style="font-family:'Inter',sans-serif;padding:4px;min-width:200px;color:#e8e3d8;">
@@ -154,8 +175,26 @@ export default function StrataMap() {
         </div>
       `;
 
-      marker.bindPopup(popupContent);
-      markersRef.current[bw.id] = marker;
+      let marker = markersRef.current[bw.id];
+      if (marker) {
+        // Update existing marker
+        const currentLatLng = marker.getLatLng();
+        if (currentLatLng.lat !== bw.latitude || currentLatLng.lng !== bw.longitude) {
+          marker.setLatLng(latLng);
+        }
+        if (marker.options.icon !== targetIcon) {
+          marker.setIcon(targetIcon);
+        }
+        marker.setPopupContent(popupContent);
+      } else {
+        // Create new marker
+        marker = L.marker(latLng, {
+          icon: targetIcon,
+        });
+        marker.bindPopup(popupContent);
+        clusterGroup.addLayer(marker);
+        markersRef.current[bw.id] = marker;
+      }
     });
   }, [state.borewells, state.activeBorewellId]);
 
@@ -393,3 +432,5 @@ export default function StrataMap() {
     </div>
   );
 }
+
+export default memo(StrataMap);

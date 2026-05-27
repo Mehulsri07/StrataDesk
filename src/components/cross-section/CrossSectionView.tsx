@@ -2,22 +2,20 @@
 // CrossSectionView — SVG geological cross-section visualization
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Mountain, Info, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-import type { CrossSectionBorewell, NormalisedBorewell, GeologicalPath } from './types'
+import type { CrossSectionBorewell, NormalisedBorewell } from './types'
 import {
   layoutBorewells,
   getElevationBounds,
   makeYScale,
 } from './geoUtils'
-import {
-  buildSpanPaths,
-  getSoilColor,
-  collectSoilTypes,
-} from './interpolate'
+import { getSoilColor } from '@/lib/soilColors'
+import { buildCrossSection } from '@/lib/crossSectionEngine'
+import { validateBorewells } from '@/lib/geologyValidation'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -33,7 +31,7 @@ interface TooltipData {
   y: number
 }
 
-function GeologyTooltip({ data }: { data: TooltipData }) {
+const GeologyTooltip = memo(function GeologyTooltip({ data }: { data: TooltipData }) {
   return (
     <motion.g
       initial={{ opacity: 0, scale: 0.9 }}
@@ -62,9 +60,9 @@ function GeologyTooltip({ data }: { data: TooltipData }) {
       </text>
     </motion.g>
   )
-}
+});
 
-function BoreholeSVG({
+const BoreholeSVG = memo(function BoreholeSVG({
   bw, index, colW, yScale, isHovered, onHover,
 }: {
   bw: NormalisedBorewell
@@ -85,7 +83,7 @@ function BoreholeSVG({
       onMouseLeave={() => onHover(null)}>
       
       {/* Background tube */}
-      <rect x={bw.x - halfW} y={groundY} width={colW} height={bottomY - groundY}
+      <rect x={bw.x - halfW} y={groundY} width={colW} height={Math.max(0, bottomY - groundY)}
         fill="#050e16" rx={2} />
 
       {/* Strata segments inside column */}
@@ -111,7 +109,7 @@ function BoreholeSVG({
       })}
 
       {/* Gold outline */}
-      <rect x={bw.x - halfW} y={groundY} width={colW} height={bottomY - groundY}
+      <rect x={bw.x - halfW} y={groundY} width={colW} height={Math.max(0, bottomY - groundY)}
         fill="none" stroke={GOLD} strokeWidth={1.8} rx={2} opacity={isHovered ? 1 : 0.8} />
 
       {/* Number circle */}
@@ -129,9 +127,9 @@ function BoreholeSVG({
       </text>
     </g>
   )
-}
+});
 
-function CrossSectionLegend({ soilTypes }: { soilTypes: string[] }) {
+const CrossSectionLegend = memo(function CrossSectionLegend({ soilTypes }: { soilTypes: string[] }) {
   const unique = Array.from(
     new Map(soilTypes.map(s => [s.toLowerCase().trim(), s])).values()
   )
@@ -147,9 +145,11 @@ function CrossSectionLegend({ soilTypes }: { soilTypes: string[] }) {
       ))}
     </div>
   )
-}
+});
 
 // ─── Main Component ──────────────────────────────────────────────────────────
+
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 export interface CrossSectionViewProps {
   borewells: CrossSectionBorewell[]
@@ -158,7 +158,7 @@ export interface CrossSectionViewProps {
   className?: string
 }
 
-export function CrossSectionView({
+const CrossSectionViewInner = memo(function CrossSectionViewInner({
   borewells,
   width = 900,
   height = 520,
@@ -172,6 +172,9 @@ export function CrossSectionView({
   const PAD_L = 58, PAD_R = 32, PAD_TOP = 54
   const drawWidth = width - PAD_L - PAD_R
 
+  // 1. Geological Validation
+  const validation = useMemo(() => validateBorewells(borewells), [borewells])
+
   const normalised = useMemo(
     () => layoutBorewells(borewells, drawWidth, 60).map(bw => ({ ...bw, x: bw.x + PAD_L })),
     [borewells, drawWidth],
@@ -181,28 +184,65 @@ export function CrossSectionView({
 
   const colW = Math.min(40, drawWidth / (normalised.length * 2.6))
 
-  const allPaths = useMemo<GeologicalPath[]>(() => {
-    const paths: GeologicalPath[] = []
-    if (normalised.length < 2) return paths
-    for (let i = 0; i < normalised.length - 1; i++) {
-      paths.push(...buildSpanPaths(normalised[i], normalised[i + 1], yScale, mode))
+  const svgDims = useMemo(() => ({
+    marginY: PAD_TOP,
+    chartH: height - PAD_TOP * 2,
+    svgH: height
+  }), [height])
+
+  // 2. Continuous Geological Cross Section via Canonical Engine
+  const polygons = useMemo(() => {
+    if (!validation.isValid || borewells.length < 2) return []
+    const xPositions = normalised.map(bw => bw.x)
+    return buildCrossSection(
+      borewells,
+      xPositions,
+      null, // Pass null to trigger MSL elevation correction
+      mode,
+      svgDims
+    )
+  }, [borewells, normalised, mode, svgDims, validation.isValid])
+
+  const allSoilTypes = useMemo(() => {
+    const seen = new Set<string>()
+    const types: string[] = []
+    for (const bw of borewells) {
+      for (const l of bw.layers) {
+        if (!seen.has(l.material)) {
+          seen.add(l.material)
+          types.push(l.material)
+        }
+      }
     }
-    return paths
-  }, [normalised, yScale, mode])
+    return types
+  }, [borewells])
 
-  const allSoilTypes = useMemo(() => collectSoilTypes(normalised), [normalised])
-  const groundLineY = useMemo(() => {
-    if (normalised.length === 0) return height / 2
-    return Math.min(...normalised.map(bw => yScale(bw.groundMSL)))
-  }, [normalised, yScale, height])
-
+  // Safe Guard State checks
   if (borewells.length < 2) {
     return (
-      <div className={cn('flex flex-col items-center justify-center gap-3 py-16 text-center rounded-2xl border border-dashed border-white/10', className)}>
+      <div className={cn('flex flex-col items-center justify-center gap-3 py-16 text-center rounded-2xl border border-dashed border-white/10', className)}
+        style={{ minHeight: height }}>
         <Mountain className="w-8 h-8 text-shallows/30" />
         <p className="text-sm text-shallows/50">
           Add at least two borewells to generate a cross-section.
         </p>
+      </div>
+    )
+  }
+
+  if (!validation.isValid) {
+    return (
+      <div className={cn('flex flex-col items-center justify-center gap-3 py-16 text-center rounded-2xl border border-dashed border-red-500/20 bg-red-500/5', className)}
+        style={{ minHeight: height }}>
+        <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center border border-red-500/20 mb-2">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-red-400">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <p className="text-sm font-semibold text-red-400">Geological Validation Error</p>
+        <p className="text-xs text-red-300/70 max-w-md px-4 leading-relaxed">{validation.error}</p>
       </div>
     )
   }
@@ -260,9 +300,6 @@ export function CrossSectionView({
               <stop offset="0%" stopColor="#0d1b24" />
               <stop offset="100%" stopColor="#091520" />
             </linearGradient>
-            <clipPath id="subsurface-clip">
-              <rect x={0} y={groundLineY} width={width} height={height - groundLineY} />
-            </clipPath>
           </defs>
 
           <rect width={width} height={height} fill="url(#xs-bg)" rx={8} />
@@ -291,10 +328,10 @@ export function CrossSectionView({
           })}
 
           {/* Geological paths */}
-          <g clipPath="url(#subsurface-clip)">
-            {allPaths.map((path, i) => (
-              <path key={i} d={path.d} fill={path.color || '#444'}
-                fillOpacity={0.9} stroke={path.color || '#444'} strokeWidth={1} opacity={0.9}
+          <g>
+            {polygons.map((poly, i) => (
+              <path key={i} d={poly.path} fill={poly.color || '#444'}
+                fillOpacity={0.9} stroke={poly.color || '#444'} strokeWidth={1} opacity={0.9}
                 onMouseMove={e => {
                   const svgEl = (e.currentTarget.ownerSVGElement as SVGSVGElement)
                   if (!svgEl) return
@@ -303,7 +340,7 @@ export function CrossSectionView({
                   const ctm = svgEl.getScreenCTM()
                   if (!ctm) return
                   const svgPt = pt.matrixTransform(ctm.inverse())
-                  setTooltip({ soilType: path.soilType, color: path.color, x: svgPt.x, y: svgPt.y })
+                  setTooltip({ soilType: poly.displayName, color: poly.color, x: svgPt.x, y: svgPt.y })
                 }}
                 onMouseLeave={() => setTooltip(null)} />
             ))}
@@ -332,4 +369,12 @@ export function CrossSectionView({
       </div>
     </div>
   )
-}
+});
+
+export const CrossSectionView = memo(function CrossSectionView(props: CrossSectionViewProps) {
+  return (
+    <ErrorBoundary>
+      <CrossSectionViewInner {...props} />
+    </ErrorBoundary>
+  )
+});

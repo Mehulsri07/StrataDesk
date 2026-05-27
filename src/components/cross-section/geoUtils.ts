@@ -89,6 +89,7 @@ export function layoutBorewells(
   borewells: CrossSectionBorewell[],
   canvasWidth: number,
   horizontalPadding: number = 80,
+  minSpacingPx: number = 80,
 ): NormalisedBorewell[] {
   if (borewells.length === 0) return []
   if (borewells.length === 1) {
@@ -107,10 +108,31 @@ export function layoutBorewells(
   const totalDistance = cumulativeDistances[cumulativeDistances.length - 1]
   const usableWidth = canvasWidth - horizontalPadding * 2
 
-  return borewells.map((bw, i) => {
+  const positions = borewells.map((_, i) => {
     const ratio = totalDistance > 0 ? cumulativeDistances[i] / totalDistance : i / (borewells.length - 1)
-    const xPosition = horizontalPadding + ratio * usableWidth
-    return normaliseBorewell(bw, xPosition)
+    return horizontalPadding + ratio * usableWidth
+  })
+
+  // Enforce minimum spacing to prevent visual overlaps
+  for (let i = 1; i < positions.length; i++) {
+    if (positions[i] < positions[i - 1] + minSpacingPx) {
+      positions[i] = positions[i - 1] + minSpacingPx
+    }
+  }
+
+  // Right-to-left shift back if we exceed bounds
+  const maxRight = canvasWidth - horizontalPadding
+  if (positions[positions.length - 1] > maxRight) {
+    positions[positions.length - 1] = maxRight
+    for (let i = positions.length - 2; i >= 0; i--) {
+      if (positions[i] > positions[i + 1] - minSpacingPx) {
+        positions[i] = positions[i + 1] - minSpacingPx
+      }
+    }
+  }
+
+  return borewells.map((bw, i) => {
+    return normaliseBorewell(bw, positions[i])
   })
 }
 

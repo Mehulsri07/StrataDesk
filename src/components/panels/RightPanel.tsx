@@ -1,10 +1,10 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Trash2, MapPin, Ruler, CircleDot, Droplets, StickyNote, Plus, ArrowDownToLine, Palette } from 'lucide-react';
+import { X, Save, Trash2, MapPin, Ruler, CircleDot, Droplets, StickyNote, Plus, ArrowDownToLine, Palette, Loader2 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useApp } from '@/store/AppContext';
 import { DEFAULT_MATERIALS } from '@/types';
 import { getSoilColor } from '@/lib/soilColors';
-import type { StrataLayer } from '@/types';
+import type { StrataLayer, Borewell } from '@/types';
 import StrataChart from '../chart/StrataChart';
 
 export default function RightPanel() {
@@ -15,6 +15,42 @@ export default function RightPanel() {
     diameter: 8, totalDepth: '', waterLevel: '', notes: '',
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFieldChange = (field: keyof typeof formData, value: any) => {
+    setFormData(prev => {
+      const next = { ...prev, [field]: value };
+      if (active) {
+        // Parse and validate values for auto-saving
+        const patchData: Partial<Borewell> = {};
+        if (field === 'name') patchData.name = String(value).trim();
+        else if (field === 'location') patchData.location = String(value);
+        else if (field === 'notes') patchData.notes = String(value);
+        else if (field === 'diameter') patchData.diameter = Number(value);
+        else if (field === 'latitude') {
+          const lat = parseFloat(value);
+          if (!isNaN(lat)) patchData.latitude = lat;
+        }
+        else if (field === 'longitude') {
+          const lng = parseFloat(value);
+          if (!isNaN(lng)) patchData.longitude = lng;
+        }
+        else if (field === 'totalDepth') {
+          const td = parseFloat(value);
+          if (!isNaN(td) && td >= 0) patchData.totalDepth = td;
+        }
+        else if (field === 'waterLevel') {
+          const wl = value === '' ? null : parseFloat(value);
+          if (wl === null || !isNaN(wl)) patchData.waterLevel = wl;
+        }
+
+        // Only save if there's something to patch
+        if (Object.keys(patchData).length > 0) {
+          saveBorewell(patchData);
+        }
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (active) {
@@ -177,8 +213,11 @@ export default function RightPanel() {
         >
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-3 border-b border-white/5">
-            <h2 className="text-foam font-semibold text-sm tracking-wide uppercase">
+            <h2 className="text-foam font-semibold text-sm tracking-wide uppercase flex items-center gap-2">
               {active ? 'Inspector' : state.pendingLatLng ? 'New Borewell' : 'Inspector'}
+              {active && state.savingIds.includes(active.id) && (
+                <Loader2 className="w-3.5 h-3.5 text-reef animate-spin ml-1.5" />
+              )}
             </h2>
             <button
               onClick={() => dispatch({ type: 'TOGGLE_RIGHT_PANEL' })}
@@ -197,7 +236,7 @@ export default function RightPanel() {
                   <label className="text-xs text-shallows/60 mb-1 block">Latitude</label>
                   <input
                     value={formData.latitude}
-                    onChange={e => setFormData(p => ({ ...p, latitude: e.target.value }))}
+                    onChange={e => handleFieldChange('latitude', e.target.value)}
                     className="w-full px-3 py-2 rounded-lg text-sm text-foam bg-white/5 border border-white/10 focus:outline-none focus:border-core/50 focus:ring-1 focus:ring-core/30 transition-all"
                     placeholder="Auto"
                   />
@@ -206,7 +245,7 @@ export default function RightPanel() {
                   <label className="text-xs text-shallows/60 mb-1 block">Longitude</label>
                   <input
                     value={formData.longitude}
-                    onChange={e => setFormData(p => ({ ...p, longitude: e.target.value }))}
+                    onChange={e => handleFieldChange('longitude', e.target.value)}
                     className="w-full px-3 py-2 rounded-lg text-sm text-foam bg-white/5 border border-white/10 focus:outline-none focus:border-core/50 focus:ring-1 focus:ring-core/30 transition-all"
                     placeholder="Auto"
                   />
@@ -216,7 +255,7 @@ export default function RightPanel() {
                 <label className="text-xs text-shallows/60 mb-1 block">Address</label>
                 <input
                   value={formData.location}
-                  onChange={e => setFormData(p => ({ ...p, location: e.target.value }))}
+                  onChange={e => handleFieldChange('location', e.target.value)}
                   className="w-full px-3 py-2 rounded-lg text-sm text-foam bg-white/5 border border-white/10 focus:outline-none focus:border-core/50 focus:ring-1 focus:ring-core/30 transition-all"
                   placeholder="Location description"
                 />
@@ -230,7 +269,7 @@ export default function RightPanel() {
                   <label className="text-xs text-shallows/60 mb-1 block">Name *</label>
                   <input
                     value={formData.name}
-                    onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
+                    onChange={e => handleFieldChange('name', e.target.value)}
                     className="w-full px-3 py-2 rounded-lg text-sm text-foam bg-white/5 border border-white/10 focus:outline-none focus:border-core/50 focus:ring-1 focus:ring-core/30 transition-all"
                     placeholder="BW-001"
                   />
@@ -240,7 +279,7 @@ export default function RightPanel() {
                     <label className="text-xs text-shallows/60 mb-1 block">Diameter (" )</label>
                     <select
                       value={formData.diameter}
-                      onChange={e => setFormData(p => ({ ...p, diameter: Number(e.target.value) }))}
+                      onChange={e => handleFieldChange('diameter', e.target.value)}
                       className="w-full px-3 py-2 rounded-lg text-sm text-foam bg-white/5 border border-white/10 focus:outline-none focus:border-core/50 transition-all appearance-none"
                     >
                       {[8, 10, 12, 14, 16, 18, 20, 24].map(d => (
@@ -253,7 +292,7 @@ export default function RightPanel() {
                     <input
                       type="number"
                       value={formData.totalDepth}
-                      onChange={e => setFormData(p => ({ ...p, totalDepth: e.target.value }))}
+                      onChange={e => handleFieldChange('totalDepth', e.target.value)}
                       className="w-full px-3 py-2 rounded-lg text-sm text-foam bg-white/5 border border-white/10 focus:outline-none focus:border-core/50 focus:ring-1 focus:ring-core/30 transition-all"
                       placeholder="0"
                       min="0"
@@ -267,7 +306,7 @@ export default function RightPanel() {
                     <input
                       type="number"
                       value={formData.waterLevel}
-                      onChange={e => setFormData(p => ({ ...p, waterLevel: e.target.value }))}
+                      onChange={e => handleFieldChange('waterLevel', e.target.value)}
                       className="w-full pl-9 pr-3 py-2 rounded-lg text-sm text-foam bg-white/5 border border-white/10 focus:outline-none focus:border-core/50 focus:ring-1 focus:ring-core/30 transition-all"
                       placeholder="Optional"
                       min="0"
@@ -373,7 +412,7 @@ export default function RightPanel() {
             <Section icon={<StickyNote className="w-4 h-4" />} title="Notes">
               <textarea
                 value={formData.notes}
-                onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))}
+                onChange={e => handleFieldChange('notes', e.target.value)}
                 rows={3}
                 className="w-full px-3 py-2 rounded-lg text-sm text-foam bg-white/5 border border-white/10 focus:outline-none focus:border-core/50 focus:ring-1 focus:ring-core/30 transition-all resize-none"
                 placeholder="Field notes..."

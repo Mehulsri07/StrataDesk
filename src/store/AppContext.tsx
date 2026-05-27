@@ -6,7 +6,8 @@
  *  - useApp()     — hook for consuming state and actions anywhere in the tree
  */
 
-import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Borewell, StrataLayer, AppState } from '@/types';
 import { createBorewell, generateId } from '@/types';
 import { getSoilColor } from '@/lib/soilColors';
@@ -21,7 +22,8 @@ function loadCustomMaterials(): CustomMaterial[] {
   try {
     const raw = localStorage.getItem(CUSTOM_MATERIALS_KEY);
     return raw ? (JSON.parse(raw) as CustomMaterial[]) : [];
-  } catch {
+  } catch (err) {
+    console.warn('Custom materials could not be loaded from localStorage', err);
     return [];
   }
 }
@@ -37,6 +39,12 @@ const initialState: AppState = {
   rightPanelOpen:     true,
   bottomDrawerOpen:   false,
   isLoading:          false,
+  // Part 3 centralized states
+  elevationFetched:   [],
+  selectedBorewells:  [],
+  waterTableVisible:  true,
+  terrainVisible:     true,
+  savingIds:          [],
 };
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
@@ -46,7 +54,12 @@ type FullState = AppState & { toasts: Toast[]; customMaterials: CustomMaterial[]
 function appReducer(state: FullState, action: Action): FullState {
   switch (action.type) {
     case 'SET_BOREWELLS':
-      return { ...state, borewells: action.payload, isLoading: false };
+      return {
+        ...state,
+        borewells: action.payload,
+        isLoading: false,
+        selectedBorewells: action.payload.filter(b => b.selectedForCrossSection).map(b => b.id),
+      };
 
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
@@ -56,6 +69,9 @@ function appReducer(state: FullState, action: Action): FullState {
         ...state,
         borewells: [...state.borewells, action.payload],
         activeBorewellId: action.payload.id,
+        selectedBorewells: action.payload.selectedForCrossSection
+          ? Array.from(new Set([...state.selectedBorewells, action.payload.id]))
+          : state.selectedBorewells,
       };
 
     case 'UPDATE_BOREWELL': {
@@ -74,6 +90,9 @@ function appReducer(state: FullState, action: Action): FullState {
         borewells: state.borewells.filter(b => b.id !== action.id),
         activeBorewellId:
           state.activeBorewellId === action.id ? null : state.activeBorewellId,
+        selectedBorewells: state.selectedBorewells.filter(id => id !== action.id),
+        elevationFetched: state.elevationFetched.filter(id => id !== action.id),
+        savingIds: state.savingIds.filter(id => id !== action.id),
       };
 
     case 'SET_ACTIVE_BOREWELL':
@@ -144,15 +163,21 @@ function appReducer(state: FullState, action: Action): FullState {
         ),
       };
 
-    case 'TOGGLE_CROSS_SECTION':
+    case 'TOGGLE_CROSS_SECTION': {
+      const isSel = state.selectedBorewells.includes(action.id);
+      const nextSel = isSel
+        ? state.selectedBorewells.filter(id => id !== action.id)
+        : [...state.selectedBorewells, action.id];
       return {
         ...state,
+        selectedBorewells: nextSel,
         borewells: state.borewells.map(b =>
           b.id === action.id
-            ? { ...b, selectedForCrossSection: !b.selectedForCrossSection }
+            ? { ...b, selectedForCrossSection: !isSel }
             : b
         ),
       };
+    }
 
     case 'ADD_TOAST':
       return { ...state, toasts: [...state.toasts, action.payload] };
@@ -166,7 +191,11 @@ function appReducer(state: FullState, action: Action): FullState {
       );
       if (already) return state;
       const updated = [...state.customMaterials, action.payload];
-      localStorage.setItem(CUSTOM_MATERIALS_KEY, JSON.stringify(updated));
+      try {
+        localStorage.setItem(CUSTOM_MATERIALS_KEY, JSON.stringify(updated));
+      } catch (err) {
+        console.warn('Custom materials could not be persisted', err);
+      }
       return { ...state, customMaterials: updated };
     }
 
@@ -174,9 +203,55 @@ function appReducer(state: FullState, action: Action): FullState {
       const updated = state.customMaterials.filter(
         m => m.name.toLowerCase() !== action.name.toLowerCase()
       );
-      localStorage.setItem(CUSTOM_MATERIALS_KEY, JSON.stringify(updated));
+      try {
+        localStorage.setItem(CUSTOM_MATERIALS_KEY, JSON.stringify(updated));
+      } catch (err) {
+        console.warn('Custom materials could not be persisted', err);
+      }
       return { ...state, customMaterials: updated };
     }
+
+    case 'SET_ELEVATION_FETCHED':
+      return { ...state, elevationFetched: action.payload };
+
+    case 'ADD_ELEVATION_FETCHED':
+      return {
+        ...state,
+        elevationFetched: Array.from(new Set([...state.elevationFetched, action.payload]))
+      };
+
+    case 'SET_SELECTED_BOREWELLS': {
+      const nextSelected = action.payload;
+      return {
+        ...state,
+        selectedBorewells: nextSelected,
+        borewells: state.borewells.map(b => ({
+          ...b,
+          selectedForCrossSection: nextSelected.includes(b.id)
+        }))
+      };
+    }
+
+    case 'SET_WATER_TABLE_VISIBLE':
+      return { ...state, waterTableVisible: action.payload };
+
+    case 'SET_TERRAIN_VISIBLE':
+      return { ...state, terrainVisible: action.payload };
+
+    case 'SET_SAVING_IDS':
+      return { ...state, savingIds: action.payload };
+
+    case 'ADD_SAVING_ID':
+      return {
+        ...state,
+        savingIds: Array.from(new Set([...state.savingIds, action.id]))
+      };
+
+    case 'REMOVE_SAVING_ID':
+      return {
+        ...state,
+        savingIds: state.savingIds.filter(id => id !== action.id)
+      };
 
     default:
       return state;
@@ -204,7 +279,7 @@ interface AppContextType {
   toggleCrossSection:  (id: string) => Promise<void>;
 }
 
-const AppContext = createContext<AppContextType | null>(null);
+export const AppContext = createContext<AppContextType | null>(null);
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
@@ -217,44 +292,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   });
   const { toasts, customMaterials, ...state } = fullState;
 
-  // Bootstrap borewells from the API on mount
-  useEffect(() => {
-    let mounted = true;
+  const queryClient = useQueryClient();
 
-    const loadBorewells = async () => {
-      try {
-        const borewells = await api.listBorewells();
-        if (!mounted) return;
-        dispatch({ type: 'SET_BOREWELLS', payload: borewells });
-        if (borewells.length > 0 && !state.activeBorewellId) {
-          dispatch({ type: 'SET_ACTIVE_BOREWELL', id: borewells[0].id });
-        }
-      } catch {
-        if (!mounted) return;
-        dispatch({ type: 'SET_LOADING', payload: false });
-        dispatch({
-          type: 'ADD_TOAST',
-          payload: {
-            id: generateId(),
-            message: 'Unable to load borewells from server.',
-            type: 'error',
-          },
-        });
-      }
-    };
-
-    loadBorewells();
-    return () => { mounted = false; };
-  }, []);
-
-  // ── Selectors ──────────────────────────────────────────────────────────────
-
-  const getActiveBorewell = useCallback(
-    () => state.borewells.find(b => b.id === state.activeBorewellId) ?? null,
-    [state.borewells, state.activeBorewellId]
-  );
-
-  // ── Toast helpers ──────────────────────────────────────────────────────────
+  // ── Toast helpers (declared early for use in effects) ──────────────────────
 
   const showToast = useCallback(
     (message: string, type: Toast['type'] = 'success') => {
@@ -269,6 +309,91 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (id: string) => dispatch({ type: 'REMOVE_TOAST', id }),
     []
   );
+
+  const { data: fetchedBorewells, isLoading: queryLoading, isError: queryError } = useQuery({
+    queryKey: ['borewells'],
+    queryFn: api.listBorewells,
+  });
+
+  useEffect(() => {
+    dispatch({ type: 'SET_LOADING', payload: queryLoading });
+  }, [queryLoading]);
+
+  useEffect(() => {
+    if (queryError) {
+      showToast('Unable to load borewells from server.', 'error');
+    }
+  }, [queryError, showToast]);
+
+  useEffect(() => {
+    if (fetchedBorewells && state.savingIds.length === 0) {
+      dispatch({ type: 'SET_BOREWELLS', payload: fetchedBorewells });
+      if (fetchedBorewells.length > 0 && !state.activeBorewellId) {
+        dispatch({ type: 'SET_ACTIVE_BOREWELL', id: fetchedBorewells[0].id });
+      }
+    }
+  }, [fetchedBorewells, state.savingIds.length, state.activeBorewellId]);
+
+  // ── Selectors ──────────────────────────────────────────────────────────────
+
+  const getActiveBorewell = useCallback(
+    () => state.borewells.find(b => b.id === state.activeBorewellId) ?? null,
+    [state.borewells, state.activeBorewellId]
+  );
+
+  // ── Debounced Save Mechanism ───────────────────────────────────────────────
+
+  const saveTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
+  const latestBorewellsRef = useRef<Borewell[]>([]);
+
+  useEffect(() => {
+    latestBorewellsRef.current = state.borewells;
+  }, [state.borewells]);
+
+  useEffect(() => {
+    return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      Object.values(saveTimeouts.current).forEach(clearTimeout);
+    };
+  }, []);
+
+  const queueDebouncedSave = useCallback((borewellId: string) => {
+    dispatch({ type: 'ADD_SAVING_ID', id: borewellId });
+
+    if (saveTimeouts.current[borewellId]) {
+      clearTimeout(saveTimeouts.current[borewellId]);
+    }
+
+    saveTimeouts.current[borewellId] = setTimeout(async () => {
+      const latest = latestBorewellsRef.current.find(b => b.id === borewellId);
+      if (!latest) {
+        dispatch({ type: 'REMOVE_SAVING_ID', id: borewellId });
+        return;
+      }
+
+      try {
+        await api.patchBorewell(borewellId, {
+          name: latest.name,
+          location: latest.location,
+          latitude: latest.latitude,
+          longitude: latest.longitude,
+          diameter: latest.diameter,
+          totalDepth: latest.totalDepth,
+          waterLevel: latest.waterLevel,
+          groundElevationMSL: latest.groundElevationMSL,
+          notes: latest.notes,
+          selectedForCrossSection: latest.selectedForCrossSection,
+          layers: latest.layers,
+        });
+        queryClient.invalidateQueries({ queryKey: ['borewells'] });
+      } catch (err) {
+        console.error(`Failed to auto-save borewell ${borewellId}:`, err);
+        showToast(`Failed to auto-save changes for ${latest.name || borewellId}`, 'error');
+      } finally {
+        dispatch({ type: 'REMOVE_SAVING_ID', id: borewellId });
+      }
+    }, 1000);
+  }, [showToast, queryClient]);
 
   // ── Layer actions (optimistic dispatch + API sync) ─────────────────────────
 
@@ -288,95 +413,65 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       color:      getSoilColor('Clay'),
     };
 
-    const updatedBorewell = {
-      ...bw,
-      layers: [...bw.layers, layer].sort((a, b) => a.startDepth - b.startDepth),
-    };
-
-    try {
-      const saved = await api.updateBorewell(borewellId, updatedBorewell);
-      dispatch({ type: 'UPDATE_BOREWELL', payload: saved });
-    } catch {
-      showToast('Failed to add layer.', 'error');
-    }
-  }, [state.borewells, showToast]);
+    dispatch({ type: 'ADD_LAYER', borewellId, layer });
+    queueDebouncedSave(borewellId);
+  }, [state.borewells, queueDebouncedSave]);
 
   const deleteLayer = useCallback(async (borewellId: string, layerId: string) => {
-    const bw = state.borewells.find(b => b.id === borewellId);
-    if (!bw) return;
-    const updatedBorewell = { ...bw, layers: bw.layers.filter(l => l.id !== layerId) };
-    try {
-      const saved = await api.updateBorewell(borewellId, updatedBorewell);
-      dispatch({ type: 'UPDATE_BOREWELL', payload: saved });
-    } catch {
-      showToast('Failed to delete layer.', 'error');
-    }
-  }, [state.borewells, showToast]);
+    dispatch({ type: 'DELETE_LAYER', borewellId, layerId });
+    queueDebouncedSave(borewellId);
+  }, [queueDebouncedSave]);
 
   const updateLayer = useCallback(
     async (borewellId: string, layerId: string, updates: Partial<StrataLayer>) => {
-      const bw = state.borewells.find(b => b.id === borewellId);
-      if (!bw) return;
-      const updatedLayers = bw.layers
-        .map(l => (l.id === layerId ? { ...l, ...updates } : l))
-        .sort((a, b) => a.startDepth - b.startDepth);
-      try {
-        const saved = await api.updateBorewell(borewellId, { ...bw, layers: updatedLayers });
-        dispatch({ type: 'UPDATE_BOREWELL', payload: saved });
-      } catch {
-        showToast('Failed to update layer.', 'error');
-      }
+      dispatch({ type: 'UPDATE_LAYER', borewellId, layerId, updates });
+      queueDebouncedSave(borewellId);
     },
-    [state.borewells, showToast]
+    [queueDebouncedSave]
   );
 
   const setLayers = useCallback(async (borewellId: string, layers: StrataLayer[]) => {
-    const bw = state.borewells.find(b => b.id === borewellId);
-    if (!bw) return;
-    try {
-      const saved = await api.updateBorewell(borewellId, { ...bw, layers });
-      dispatch({ type: 'UPDATE_BOREWELL', payload: saved });
-    } catch {
-      showToast('Failed to import layers.', 'error');
-    }
-  }, [state.borewells, showToast]);
+    dispatch({ type: 'SET_LAYERS', borewellId, layers });
+    queueDebouncedSave(borewellId);
+  }, [queueDebouncedSave]);
 
   // ── Borewell actions ───────────────────────────────────────────────────────
 
   const saveBorewell = useCallback(async (data: Partial<Borewell>) => {
     const existing = state.borewells.find(b => b.id === state.activeBorewellId);
     if (existing) {
-      try {
-        const updated = await api.updateBorewell(existing.id, {
-          ...existing,
-          ...data,
-          updatedAt: new Date().toISOString(),
-        });
-        dispatch({ type: 'UPDATE_BOREWELL', payload: updated });
-        showToast('Borewell updated successfully', 'success');
-      } catch {
-        showToast('Failed to save borewell.', 'error');
-      }
+      const updated = {
+        ...existing,
+        ...data,
+        updatedAt: new Date().toISOString(),
+      };
+      dispatch({ type: 'UPDATE_BOREWELL', payload: updated });
+      queueDebouncedSave(existing.id);
     } else {
       const newBw = createBorewell(data);
+      dispatch({ type: 'SET_LOADING', payload: true });
       try {
         const created = await api.createBorewell(newBw);
         dispatch({ type: 'ADD_BOREWELL', payload: created });
-        showToast('Borewell saved successfully', 'success');
+        queryClient.invalidateQueries({ queryKey: ['borewells'] });
+        showToast('Borewell created successfully', 'success');
       } catch {
         showToast('Failed to create borewell.', 'error');
+      } finally {
+        dispatch({ type: 'SET_LOADING', payload: false });
       }
     }
-  }, [state.borewells, state.activeBorewellId, showToast]);
+  }, [state.borewells, state.activeBorewellId, queueDebouncedSave, showToast, queryClient]);
 
   const deleteBorewell = useCallback(async (id: string) => {
     try {
       await api.deleteBorewell(id);
       dispatch({ type: 'DELETE_BOREWELL', id });
+      queryClient.invalidateQueries({ queryKey: ['borewells'] });
     } catch {
       showToast('Failed to delete borewell.', 'error');
     }
-  }, [showToast]);
+  }, [showToast, queryClient]);
 
   const setActiveBorewell = useCallback(
     (id: string | null) => dispatch({ type: 'SET_ACTIVE_BOREWELL', id }),
@@ -390,17 +485,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const toggleCrossSection = useCallback(async (id: string) => {
-    const bw = state.borewells.find(b => b.id === id);
-    if (!bw) return;
-    try {
-      const updated = await api.patchBorewell(id, {
-        selectedForCrossSection: !bw.selectedForCrossSection,
-      });
-      dispatch({ type: 'UPDATE_BOREWELL', payload: updated });
-    } catch {
-      showToast('Failed to update cross-section selection.', 'error');
-    }
-  }, [state.borewells, showToast]);
+    dispatch({ type: 'TOGGLE_CROSS_SECTION', id });
+    queueDebouncedSave(id);
+  }, [queueDebouncedSave]);
 
   return (
     <AppContext.Provider value={{

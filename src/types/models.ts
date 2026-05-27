@@ -61,4 +61,11 @@ export interface AppState {
   rightPanelOpen: boolean;
   bottomDrawerOpen: boolean;
   isLoading: boolean;
+  // Part 3 New Centralized States
+  elevationFetched: string[];
+  selectedBorewells: string[];
+  waterTableVisible: boolean;
+  terrainVisible: boolean;
+  savingIds: string[];
 }
+

@@ -25,15 +25,8 @@ import type { Borewell } from '@/types'
 export default function MapDashboardPage() {
   const { state, dispatch } = useApp()
 
-  // ── Elevation-fetched tracking (local UI state only) ──────────────────────
-  // We track which borewell IDs have had elevation fetched this session.
-  // The actual groundElevationMSL lives on the canonical Borewell in AppContext.
-  const [elevationFetched, setElevationFetched] = useState<Set<string>>(new Set())
   const [loadingElevation, setLoadingElevation] = useState(false)
-
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [focusedId, setFocusedId] = useState<string | null>(null)
-  const [orderedList, setOrderedList] = useState<Borewell[]>([])
   const [showCrossSection, setShowCrossSection] = useState(false)
   const [sectionTitle, setSectionTitle] = useState("Section A-A'")
 
@@ -44,6 +37,17 @@ export default function MapDashboardPage() {
 
   // Borewells come directly from AppContext — no local shadow state
   const borewells = state.borewells
+
+  // Memoize sets and lists derived from AppContext to avoid recomputations
+  const selectedIds = useMemo(() => new Set(state.selectedBorewells), [state.selectedBorewells])
+  const elevationFetchedSet = useMemo(() => new Set(state.elevationFetched), [state.elevationFetched])
+
+  const orderedList = useMemo(() => {
+    const map = new Map(borewells.map(b => [b.id, b]))
+    return state.selectedBorewells
+      .map(id => map.get(id))
+      .filter((b): b is Borewell => !!b)
+  }, [borewells, state.selectedBorewells])
 
   // ── Map Lifecycle ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -86,19 +90,12 @@ export default function MapDashboardPage() {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const toggleBorewell = useCallback((id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-        setOrderedList(ol => ol.filter(bw => bw.id !== id))
-      } else {
-        next.add(id)
-        const bw = borewells.find(b => b.id === id)
-        if (bw) setOrderedList(ol => [...ol, bw])
-      }
-      return next
-    })
-  }, [borewells])
+    dispatch({ type: 'TOGGLE_CROSS_SECTION', id })
+  }, [dispatch])
+
+  const handleReorder = useCallback((newOrderedList: Borewell[]) => {
+    dispatch({ type: 'SET_SELECTED_BOREWELLS', payload: newOrderedList.map(b => b.id) })
+  }, [dispatch])
 
   const handleFetchElevation = useCallback(async () => {
     setLoadingElevation(true)
@@ -109,24 +106,27 @@ export default function MapDashboardPage() {
         lat: bw.latitude,
         lng: bw.longitude,
         groundElevationMSL: bw.groundElevationMSL ?? undefined,
-        elevationFetched: elevationFetched.has(bw.id),
+        elevationFetched: elevationFetchedSet.has(bw.id),
       }))
       const updated = await fetchElevations(toFetch)
-      const newFetched = new Set(elevationFetched)
+      const nextFetched = [...state.elevationFetched]
+      
       for (const item of updated) {
         if (item.elevationFetched && item.groundElevationMSL != null) {
-          newFetched.add(item.id)
+          if (!nextFetched.includes(item.id)) {
+            nextFetched.push(item.id)
+          }
           // Persist to backend + update AppContext
           api.patchBorewell(item.id, { groundElevationMSL: item.groundElevationMSL })
             .then(saved => dispatch({ type: 'UPDATE_BOREWELL', payload: saved }))
             .catch(console.error)
         }
       }
-      setElevationFetched(newFetched)
+      dispatch({ type: 'SET_ELEVATION_FETCHED', payload: nextFetched })
     } finally {
       setLoadingElevation(false)
     }
-  }, [borewells, elevationFetched, dispatch])
+  }, [borewells, state.elevationFetched, elevationFetchedSet, dispatch])
 
   const sectionBorewells = useMemo(
     () => orderedList.filter(bw => selectedIds.has(bw.id)),
@@ -139,7 +139,9 @@ export default function MapDashboardPage() {
     [sectionBorewells]
   )
 
-  const unfetchedCount = borewells.filter(bw => !elevationFetched.has(bw.id)).length
+  const unfetchedCount = useMemo(() => {
+    return borewells.filter(bw => !elevationFetchedSet.has(bw.id)).length
+  }, [borewells, elevationFetchedSet])
 
   return (
     <div className="flex flex-col h-screen bg-void overflow-hidden font-sans">
@@ -155,7 +157,7 @@ export default function MapDashboardPage() {
           orderedList={orderedList}
           sectionTitle={sectionTitle}
           showCrossSection={showCrossSection}
-          onReorder={setOrderedList}
+          onReorder={handleReorder}
           onTitleChange={setSectionTitle}
           onToggleGenerate={() => setShowCrossSection(v => !v)}
         />

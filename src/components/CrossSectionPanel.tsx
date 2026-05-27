@@ -1,10 +1,13 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useCallback, memo } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '@/store/AppContext';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Loader2 } from 'lucide-react';
 import type { Borewell, CrossSectionMode } from '@/types';
 import { buildCrossSection } from '@/lib/crossSectionEngine';
 import { borewellToCSInput } from '@/lib/adapters';
+import type { CrossSectionInput } from '@/lib/adapters';
+import { layoutBorewells, mToFt, ftToM } from '@/components/cross-section/geoUtils';
+import { validateBorewells } from '@/lib/geologyValidation';
 
 const PX_PER_FT = 3;
 const COL_WIDTH = 220;
@@ -12,56 +15,140 @@ const MARGIN_X = 100;
 const MARGIN_Y = 90;
 const BH_COL_HALF = 44;
 
-export default function CrossSection() {
+export default memo(CrossSection);
+
+function CrossSection() {
   const { state, dispatch } = useApp();
 
-  // ── Borewell ordering state ──────────────────────────────────────
-  const [order, setOrder] = useState<string[]>([]);
+  const [yAxisMode, setYAxisMode] = useState<'MSL' | 'depth'>('MSL');
 
-  const allSelected = state.borewells.filter(
-    b => b.selectedForCrossSection && b.layers.length > 0
-  );
-
-  useEffect(() => {
-    setOrder(prev => {
-      const selectedIds = new Set(allSelected.map(b => b.id));
-      const kept = prev.filter(id => selectedIds.has(id));
-      const existing = new Set(kept);
-      const added = allSelected
-        .filter(b => !existing.has(b.id))
-        .map(b => b.id);
-      return [...kept, ...added];
-    });
-  }, [allSelected.map(b => b.id).join(',')]);
-
+  // Derive selected borewells with layers in the current order from AppContext
   const selected: Borewell[] = useMemo(() => {
-    const map = new Map(allSelected.map(b => [b.id, b]));
-    return order.map(id => map.get(id)).filter((b): b is Borewell => !!b);
-  }, [order, allSelected]);
+    const map = new Map(state.borewells.map(b => [b.id, b]));
+    return state.selectedBorewells
+      .map(id => map.get(id))
+      .filter((b): b is Borewell => !!b && b.layers.length > 0);
+  }, [state.borewells, state.selectedBorewells]);
 
-  const moveLeft = (idx: number) => {
+  const moveLeft = useCallback((idx: number) => {
     if (idx <= 0) return;
-    setOrder(prev => {
-      const next = [...prev];
-      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
-      return next;
-    });
-  };
+    const next = [...state.selectedBorewells];
+    [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+    dispatch({ type: 'SET_SELECTED_BOREWELLS', payload: next });
+  }, [state.selectedBorewells, dispatch]);
 
-  const moveRight = (idx: number) => {
-    if (idx >= order.length - 1) return;
-    setOrder(prev => {
-      const next = [...prev];
-      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
-      return next;
-    });
-  };
+  const moveRight = useCallback((idx: number) => {
+    if (idx >= state.selectedBorewells.length - 1) return;
+    const next = [...state.selectedBorewells];
+    [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+    dispatch({ type: 'SET_SELECTED_BOREWELLS', payload: next });
+  }, [state.selectedBorewells, dispatch]);
 
-  const removeFromSection = (id: string) => {
+  const removeFromSection = useCallback((id: string) => {
     dispatch({ type: 'TOGGLE_CROSS_SECTION', id });
-  };
+  }, [dispatch]);
 
-  // ── SVG computation via engine ───────────────────────────────────
+  const inputs = useMemo(() => selected.map(borewellToCSInput), [selected]);
+  const validation = useMemo(() => validateBorewells(inputs), [inputs]);
+
+  // ── Layout calculations (memoized) ──────────────────────────────────
+  const layout = useMemo(() => {
+    if (selected.length < 2) {
+      return {
+        svgW: 900,
+        svgH: 700,
+        chartH: 520,
+        chartW: 700,
+        xPositions: [],
+        maxMSL: 0,
+        minMSL: 0,
+        rangeMSL: 1,
+        yScale: (_idx: number, _depth: number) => 0,
+        yScaleAbsolute: (_msl: number) => 0,
+        svgDims: { marginY: MARGIN_Y, chartH: 520, svgH: 700 }
+      };
+    }
+
+    const maxDepth = Math.max(...selected.map(b => b.totalDepth));
+    const chartH = Math.max(520, maxDepth * PX_PER_FT);
+    const svgW = Math.max(900, selected.length * COL_WIDTH + MARGIN_X * 2 + 60);
+    const svgH = chartH + MARGIN_Y * 2;
+    const chartW = svgW - MARGIN_X * 2;
+
+    const normalisedLayout = layoutBorewells(inputs, svgW, MARGIN_X + 80);
+    const xPositions = normalisedLayout.map(nb => nb.x);
+
+    const toMSL = (bh: CrossSectionInput, depthFt: number) =>
+      bh.groundElevationMSL - ftToM(depthFt);
+
+    let maxMSL = -Infinity, minMSL = Infinity;
+    for (const bh of inputs) {
+      maxMSL = Math.max(maxMSL, bh.groundElevationMSL);
+      minMSL = Math.min(minMSL, toMSL(bh, bh.totalDepthFt));
+    }
+
+    const ELEVATION_MARGIN_M = 8;
+    maxMSL += ELEVATION_MARGIN_M;
+    minMSL -= ELEVATION_MARGIN_M;
+    const rangeMSL = maxMSL - minMSL || 1;
+
+    const yScale = (bhIdx: number, depthFt: number) => {
+      const msl = toMSL(inputs[bhIdx], depthFt);
+      return MARGIN_Y + ((maxMSL - msl) / rangeMSL) * chartH;
+    };
+
+    const yScaleAbsolute = (msl: number) => {
+      return MARGIN_Y + ((maxMSL - msl) / rangeMSL) * chartH;
+    };
+
+    const svgDims = {
+      marginY: MARGIN_Y,
+      chartH,
+      svgH
+    };
+
+    return {
+      svgW,
+      svgH,
+      chartH,
+      chartW,
+      xPositions,
+      maxMSL,
+      minMSL,
+      rangeMSL,
+      yScale,
+      yScaleAbsolute,
+      svgDims
+    };
+  }, [selected, inputs]);
+
+  // ── Geological polygons via engine (memoized) ──────────────────────
+  const polygons = useMemo(() => {
+    if (selected.length < 2 || !validation.isValid) return [];
+    return buildCrossSection(
+      inputs,
+      layout.xPositions,
+      null, // Pass null to trigger MSL correction
+      state.crossSectionMode,
+      layout.svgDims
+    );
+  }, [inputs, layout.xPositions, layout.svgDims, state.crossSectionMode, validation.isValid]);
+
+  // ── Terrain Line generation (memoized) ─────────────────────────────
+  const terrainPathPoints = useMemo(() => {
+    if (!state.terrainVisible || selected.length < 2) return '';
+    return selected.map((_, i) => `${layout.xPositions[i]},${layout.yScale(i, 0)}`).join(' ');
+  }, [selected, layout.xPositions, layout.yScale, state.terrainVisible]);
+
+  // ── Water Table line generation (memoized) ─────────────────────────
+  const waterTableAnchors = useMemo(() => {
+    if (!state.waterTableVisible || selected.length < 2) return [];
+    return selected
+      .map((bw, i) => bw.waterLevel != null ? { x: layout.xPositions[i], y: layout.yScale(i, bw.waterLevel) } : null)
+      .filter((p): p is { x: number; y: number } => p !== null);
+  }, [selected, layout.xPositions, layout.yScale, state.waterTableVisible]);
+
+  // ── SVG Content ───────────────────────────────────────────────────
   const svgContent = useMemo(() => {
     if (selected.length < 2) {
       return (
@@ -82,41 +169,28 @@ export default function CrossSection() {
       );
     }
 
-    // ── Layout calculations ────────────────────────────────────────
-    const maxDepth = Math.max(...selected.map(b => b.totalDepth));
-    const chartH = Math.max(520, maxDepth * PX_PER_FT);
-    const svgW = Math.max(900, selected.length * COL_WIDTH + MARGIN_X * 2 + 60);
-    const svgH = chartH + MARGIN_Y * 2;
-    const chartW = svgW - MARGIN_X * 2;
+    if (!validation.isValid) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-center px-8">
+          <div className="w-24 h-24 rounded-2xl bg-red-500/5 flex items-center justify-center mb-6 border border-red-500/10">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="text-red-400/50">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <h3 className="text-red-400 text-lg font-medium mb-2">Geological Validation Error</h3>
+          <p className="text-red-300/60 text-sm max-w-md leading-relaxed">
+            {validation.error}
+          </p>
+        </div>
+      );
+    }
 
-    const depthScale = (d: number) => MARGIN_Y + (d / maxDepth) * chartH;
-    const xPos = (i: number) => MARGIN_X + 80 + i * COL_WIDTH;
+    const { svgW, svgH, chartH, chartW, xPositions, maxMSL, rangeMSL, yScale, yScaleAbsolute } = layout;
 
-    const xPositions = selected.map((_, i) => xPos(i));
-
-    // ── Run the geological engine ──────────────────────────────────
-    const polygons = buildCrossSection(
-      selected.map(borewellToCSInput),
-      xPositions,
-      depthScale,
-      state.crossSectionMode
-    );
-
-    // ── Depth tick marks ───────────────────────────────────────────
-    const tickInterval = maxDepth <= 60 ? 5
-      : maxDepth <= 150 ? 10
-      : maxDepth <= 300 ? 20
-      : maxDepth <= 600 ? 50
-      : 100;
-
-    const ticks: number[] = [];
-    for (let d = 0; d <= maxDepth; d += tickInterval) ticks.push(d);
-    if (ticks[ticks.length - 1] < maxDepth) ticks.push(maxDepth);
-
-    // ── Water table ────────────────────────────────────────────────
-    const waterAnchors = selected
-      .map((bw, i) => bw.waterLevel != null ? { x: xPos(i), y: depthScale(bw.waterLevel) } : null)
-      .filter((p): p is { x: number; y: number } => p !== null);
+    // Grid ticks
+    const tickPercentages = [0, 0.2, 0.4, 0.6, 0.8, 1];
 
     return (
       <svg
@@ -164,17 +238,20 @@ export default function CrossSection() {
         {/* Background */}
         <rect width={svgW} height={svgH} fill="transparent" />
 
-        {/* ── Depth axis ─────────────────────────────────────────── */}
+        {/* ── Y Axis (MSL or Depth) ─────────────────────────────────── */}
         <line
           x1={MARGIN_X} y1={MARGIN_Y}
           x2={MARGIN_X} y2={MARGIN_Y + chartH}
           stroke="rgba(169, 214, 229, 0.15)" strokeWidth={1}
         />
 
-        {ticks.map(depth => {
-          const y = depthScale(depth);
+        {tickPercentages.map((p, idx) => {
+          const msl = maxMSL - p * rangeMSL;
+          const y = yScaleAbsolute(msl);
+          const depthLabelFt = mToFt(maxMSL - msl);
+
           return (
-            <g key={`tick-${depth}`}>
+            <g key={`tick-${idx}`}>
               <line
                 x1={MARGIN_X - 6} y1={y}
                 x2={MARGIN_X} y2={y}
@@ -187,7 +264,9 @@ export default function CrossSection() {
                 fontSize={9}
                 fontFamily="'Inter', sans-serif"
               >
-                {depth.toFixed(0)} ft
+                {yAxisMode === 'MSL'
+                  ? `${msl.toFixed(0)} m`
+                  : `${depthLabelFt.toFixed(0)} ft`}
               </text>
               {/* Horizontal grid line */}
               <line
@@ -240,24 +319,49 @@ export default function CrossSection() {
           </g>
         ))}
 
-        {/* ── Water table line ────────────────────────────────────── */}
-        {waterAnchors.length >= 2 && (
+        {/* ── Terrain line ────────────────────────────────────────── */}
+        {state.terrainVisible && terrainPathPoints && (
           <g>
             <polyline
-              points={waterAnchors.map(p => `${p.x},${p.y}`).join(' ')}
+              points={terrainPathPoints}
+              fill="none"
+              stroke="#f5ead0"
+              strokeWidth={1.8}
+              strokeDasharray="4 4"
+              opacity={0.7}
+            />
+            <text
+              x={xPositions[0] - 8}
+              y={yScale(0, 0) - 8}
+              textAnchor="end"
+              fill="rgba(245, 234, 208, 0.6)"
+              fontSize={8}
+              fontFamily="'Inter', sans-serif"
+              fontWeight={600}
+            >
+              Terrain Profile
+            </text>
+          </g>
+        )}
+
+        {/* ── Water table line ────────────────────────────────────── */}
+        {state.waterTableVisible && waterTableAnchors.length >= 2 && (
+          <g>
+            <polyline
+              points={waterTableAnchors.map(p => `${p.x},${p.y}`).join(' ')}
               fill="none"
               stroke="rgba(56, 189, 248, 0.6)"
               strokeWidth={1.5}
               strokeDasharray="6 4"
             />
-            {waterAnchors.map((p, i) => (
+            {waterTableAnchors.map((p, i) => (
               <circle key={`wt-${i}`} cx={p.x} cy={p.y} r={3}
                 fill="rgba(56, 189, 248, 0.8)" stroke="#0f1117" strokeWidth={1.5}
               />
             ))}
             {/* Label */}
             <text
-              x={waterAnchors[0].x - 8} y={waterAnchors[0].y - 8}
+              x={waterTableAnchors[0].x - 8} y={waterTableAnchors[0].y - 8}
               textAnchor="end"
               fill="rgba(56, 189, 248, 0.7)"
               fontSize={8}
@@ -271,17 +375,20 @@ export default function CrossSection() {
 
         {/* ── Borehole columns (truth anchors) ───────────────────── */}
         {selected.map((bw, idx) => {
-          const x = xPos(idx);
+          const x = xPositions[idx];
+          const groundY = yScale(idx, 0);
+          const bottomY = yScale(idx, bw.totalDepth);
+
           return (
             <g key={bw.id}>
               {/* Borehole header */}
-              <text x={x} y={MARGIN_Y - 28} textAnchor="middle"
+              <text x={x} y={groundY - 28} textAnchor="middle"
                 fill="#e8e3d8" fontSize={11} fontWeight={700}
                 fontFamily="'Inter', sans-serif"
               >
                 {bw.name}
               </text>
-              <text x={x} y={MARGIN_Y - 14} textAnchor="middle"
+              <text x={x} y={groundY - 14} textAnchor="middle"
                 fill="rgba(169, 214, 229, 0.35)" fontSize={8}
                 fontFamily="'Inter', sans-serif"
               >
@@ -290,8 +397,8 @@ export default function CrossSection() {
 
               {/* Borehole column border */}
               <rect
-                x={x - BH_COL_HALF} y={MARGIN_Y}
-                width={BH_COL_HALF * 2} height={depthScale(bw.totalDepth) - MARGIN_Y}
+                x={x - BH_COL_HALF} y={groundY}
+                width={BH_COL_HALF * 2} height={Math.max(0, bottomY - groundY)}
                 fill="none"
                 stroke="rgba(169, 214, 229, 0.12)"
                 strokeWidth={1}
@@ -300,9 +407,9 @@ export default function CrossSection() {
 
               {/* Individual layer blocks within the column */}
               {bw.layers.map(layer => {
-                const yS = depthScale(layer.startDepth);
-                const yE = depthScale(layer.endDepth);
-                const h = yE - yS;
+                const yS = yScale(idx, layer.startDepth);
+                const yE = yScale(idx, layer.endDepth);
+                const h = Math.max(0, yE - yS);
 
                 return (
                   <g key={layer.id}>
@@ -334,13 +441,13 @@ export default function CrossSection() {
 
               {/* Borehole centerline marker */}
               <line
-                x1={x} y1={MARGIN_Y - 6}
-                x2={x} y2={MARGIN_Y}
+                x1={x} y1={groundY - 6}
+                x2={x} y2={groundY}
                 stroke="rgba(169, 214, 229, 0.3)"
                 strokeWidth={1}
               />
               <circle
-                cx={x} cy={MARGIN_Y - 8}
+                cx={x} cy={groundY - 8}
                 r={3}
                 fill="rgba(169, 214, 229, 0.2)"
                 stroke="rgba(169, 214, 229, 0.4)"
@@ -351,7 +458,7 @@ export default function CrossSection() {
         })}
       </svg>
     );
-  }, [selected, state.crossSectionMode]);
+  }, [selected, polygons, terrainPathPoints, waterTableAnchors, layout, yAxisMode, validation, state.terrainVisible, state.waterTableVisible]);
 
   // ── Render ──────────────────────────────────────────────────────────
   return (
@@ -375,6 +482,71 @@ export default function CrossSection() {
           <ModeButton active={state.crossSectionMode === 'smooth'} label="Smooth Flow" mode="smooth" />
           <ModeButton active={state.crossSectionMode === 'strict'} label="Strict Layer" mode="strict" />
         </div>
+
+        {/* Y-Axis Mode Toggle */}
+        <span className="text-shallows/50 text-xs uppercase tracking-wider font-medium ml-4 pl-4 border-l border-white/10">
+          Y-Axis Mode
+        </span>
+        <div
+          className="flex items-center gap-1 p-0.5 rounded-lg"
+          style={{ background: 'rgba(169, 214, 229, 0.06)' }}
+        >
+          <button
+            onClick={() => setYAxisMode('MSL')}
+            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${
+              yAxisMode === 'MSL' ? 'bg-core/50 text-foam' : 'text-shallows hover:text-foam'
+            }`}
+          >
+            MSL Elevation
+          </button>
+          <button
+            onClick={() => setYAxisMode('depth')}
+            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${
+              yAxisMode === 'depth' ? 'bg-core/50 text-foam' : 'text-shallows hover:text-foam'
+            }`}
+          >
+            Depth Axis
+          </button>
+        </div>
+
+        {/* Layers visibility toggles */}
+        <span className="text-shallows/50 text-xs uppercase tracking-wider font-medium ml-4 pl-4 border-l border-white/10">
+          Visibility
+        </span>
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-1.5 cursor-pointer text-xs text-shallows hover:text-foam transition-colors">
+            <input
+              type="checkbox"
+              checked={state.terrainVisible}
+              onChange={(e) => dispatch({ type: 'SET_TERRAIN_VISIBLE', payload: e.target.checked })}
+              className="w-3.5 h-3.5 rounded border-white/20 bg-void text-core focus:ring-core/50 focus:ring-offset-0"
+            />
+            Terrain
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer text-xs text-shallows hover:text-foam transition-colors">
+            <input
+              type="checkbox"
+              checked={state.waterTableVisible}
+              onChange={(e) => dispatch({ type: 'SET_WATER_TABLE_VISIBLE', payload: e.target.checked })}
+              className="w-3.5 h-3.5 rounded border-white/20 bg-void text-core focus:ring-core/50 focus:ring-offset-0"
+            />
+            Water Table
+          </label>
+        </div>
+
+        {/* Saving Status Indicator */}
+        {state.savingIds.length > 0 && (
+          <div className="flex items-center gap-2 ml-4 pl-4 border-l border-white/10 text-xs text-reef">
+            <Loader2 className="w-3.5 h-3.5 text-reef animate-spin" />
+            <span>Saving {state.savingIds.map(id => state.borewells.find(b => b.id === id)?.name || id).join(', ')}...</span>
+          </div>
+        )}
+
+        {state.savingIds.length === 0 && selected.length >= 2 && (
+          <div className="flex items-center gap-1.5 ml-4 pl-4 border-l border-white/10 text-[10px] text-teal-light/60">
+            <span>All changes saved</span>
+          </div>
+        )}
 
         {/* Borewell Ordering Chips */}
         {selected.length >= 2 && (
@@ -435,7 +607,7 @@ export default function CrossSection() {
   );
 }
 
-function ModeButton({
+const ModeButton = memo(function ModeButton({
   active,
   label,
   mode,
@@ -455,4 +627,4 @@ function ModeButton({
       {label}
     </button>
   );
-}
+});

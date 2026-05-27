@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const express = require('express');
 const cors    = require('cors');
+const morgan  = require('morgan');
 const { Pool } = require('pg');
 
 const app  = express();
@@ -24,10 +25,102 @@ const pool = new Pool(
 app.use(cors());
 app.use(express.json());
 
+// Morgan request logging (Method URL Status Duration - IP)
+app.use(morgan(':method :url :status :response-time ms - :remote-addr'));
+
+// Metrics collection store
+const metrics = {
+  requestsTotal: {}, // "method:route:status" -> count
+  activeRequests: 0,
+  requestDurationSum: 0,
+  requestDurationCount: 0,
+  errorRequestsTotal: 0,
+};
+
+// Route normalizer to prevent cardinality explosion
+function normalizeRoute(path) {
+  const segments = path.split('/');
+  const normalized = segments.map((segment, idx) => {
+    if (idx > 0 && segments[idx - 1] === 'borewells') {
+      if (segment && segment !== 'metrics' && segment !== 'health') {
+        return ':id';
+      }
+    }
+    return segment;
+  });
+  return normalized.join('/');
+}
+
+// Custom metrics middleware
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} ${req.method} ${req.url}`);
+  if (req.path === '/api/metrics') {
+    return next();
+  }
+
+  metrics.activeRequests++;
+  const start = performance.now();
+  let finished = false;
+
+  const decrementActive = () => {
+    if (!finished) {
+      metrics.activeRequests = Math.max(0, metrics.activeRequests - 1);
+      finished = true;
+    }
+  };
+
+  res.on('finish', () => {
+    decrementActive();
+    const duration = performance.now() - start;
+    metrics.requestDurationSum += duration;
+    metrics.requestDurationCount++;
+
+    const method = req.method;
+    const route = normalizeRoute(req.path);
+    const status = res.statusCode;
+    const key = `${method}:${route}:${status}`;
+    metrics.requestsTotal[key] = (metrics.requestsTotal[key] || 0) + 1;
+
+    if (status >= 400) {
+      metrics.errorRequestsTotal++;
+    }
+  });
+
+  res.on('close', () => {
+    decrementActive();
+  });
+
   next();
 });
+
+const API_TOKEN = process.env.API_TOKEN || 'dev-token';
+
+if (
+  process.env.NODE_ENV === 'production' &&
+  API_TOKEN === 'dev-token'
+) {
+  throw new Error(
+    'Refusing to start with dev-token in production'
+  );
+}
+
+if (API_TOKEN === 'dev-token') {
+  console.warn(
+    '[WARN] API_TOKEN not set — using insecure default'
+  );
+}
+
+function requireAuth(req, res, next) {
+  const header = req.headers['authorization'] || '';
+  const [scheme, token] = header.split(' ');
+
+  if (scheme !== 'Bearer' || token !== API_TOKEN) {
+    return res.status(401).json({
+      error: 'Unauthorized'
+    });
+  }
+
+  next();
+}
 
 // ── Schema bootstrap ──────────────────────────────────────────────────────────
 async function initSchema(retries = 10) {
@@ -133,17 +226,84 @@ async function fetchBorewellWithLayers(client, id) {
 app.get('/', (req, res) => res.send('StrataDesk API Running'));
 
 // GET /api/health
-app.get('/api/health', async (req, res) => {
-  try {
-    await pool.query('SELECT 1');
-    res.json({ status: 'healthy', database: 'connected' });
-  } catch (err) {
-    res.status(500).json({ status: 'unhealthy', database: 'disconnected' });
-  }
+app.get('/api/health', (_req, res) =>
+  res.json({ status: 'ok' })
+);
+
+// GET /api/metrics (Prometheus compatible text format)
+app.get('/api/metrics', (req, res) => {
+  const mem = process.memoryUsage();
+  const uptime = process.uptime();
+
+  let body = '';
+
+  body += '# HELP stratadesk_requests_total Total number of HTTP requests\n';
+  body += '# TYPE stratadesk_requests_total counter\n';
+  Object.entries(metrics.requestsTotal).forEach(([key, count]) => {
+    const firstColon = key.indexOf(':');
+    const lastColon = key.lastIndexOf(':');
+    const method = key.substring(0, firstColon);
+    const route = key.substring(firstColon + 1, lastColon);
+    const status = key.substring(lastColon + 1);
+    body += `stratadesk_requests_total{method="${method}",route="${route}",status="${status}"} ${count}\n`;
+  });
+  body += '\n';
+
+  body += '# HELP stratadesk_active_requests Number of currently active HTTP requests\n';
+  body += '# TYPE stratadesk_active_requests gauge\n';
+  body += `stratadesk_active_requests ${metrics.activeRequests}\n\n`;
+
+  body += '# HELP stratadesk_request_duration_ms_sum Cumulative request duration in milliseconds\n';
+  body += '# TYPE stratadesk_request_duration_ms_sum counter\n';
+  body += `stratadesk_request_duration_ms_sum ${metrics.requestDurationSum}\n\n`;
+
+  body += '# HELP stratadesk_request_duration_ms_count Cumulative request count for duration\n';
+  body += '# TYPE stratadesk_request_duration_ms_count counter\n';
+  body += `stratadesk_request_duration_ms_count ${metrics.requestDurationCount}\n\n`;
+
+  body += '# HELP stratadesk_request_errors_total Total number of HTTP requests returning status code >= 400\n';
+  body += '# TYPE stratadesk_request_errors_total counter\n';
+  body += `stratadesk_request_errors_total ${metrics.errorRequestsTotal}\n\n`;
+
+  // DB Pool metrics (Change #1 — pool often dies before DB itself)
+  const poolTotal = pool.totalCount || 0;
+  const poolIdle = pool.idleCount || 0;
+  const poolWaiting = pool.waitingCount || 0;
+  const poolActive = poolTotal - poolIdle;
+
+  body += '# HELP stratadesk_db_pool_total Total number of clients in the pool\n';
+  body += '# TYPE stratadesk_db_pool_total gauge\n';
+  body += `stratadesk_db_pool_total ${poolTotal}\n\n`;
+
+  body += '# HELP stratadesk_db_pool_idle Number of idle clients in the pool\n';
+  body += '# TYPE stratadesk_db_pool_idle gauge\n';
+  body += `stratadesk_db_pool_idle ${poolIdle}\n\n`;
+
+  body += '# HELP stratadesk_db_pool_waiting Number of queued requests waiting for a client\n';
+  body += '# TYPE stratadesk_db_pool_waiting gauge\n';
+  body += `stratadesk_db_pool_waiting ${poolWaiting}\n\n`;
+
+  body += '# HELP stratadesk_db_pool_active Number of clients currently checked out and in use\n';
+  body += '# TYPE stratadesk_db_pool_active gauge\n';
+  body += `stratadesk_db_pool_active ${poolActive}\n\n`;
+
+  body += '# HELP stratadesk_memory_usage_bytes Node process memory usage in bytes\n';
+  body += '# TYPE stratadesk_memory_usage_bytes gauge\n';
+  body += `stratadesk_memory_usage_bytes{type="rss"} ${mem.rss}\n`;
+  body += `stratadesk_memory_usage_bytes{type="heapTotal"} ${mem.heapTotal}\n`;
+  body += `stratadesk_memory_usage_bytes{type="heapUsed"} ${mem.heapUsed}\n`;
+  body += `stratadesk_memory_usage_bytes{type="external"} ${mem.external}\n\n`;
+
+  body += '# HELP stratadesk_uptime_seconds Node process uptime in seconds\n';
+  body += '# TYPE stratadesk_uptime_seconds gauge\n';
+  body += `stratadesk_uptime_seconds ${uptime}\n`;
+
+  res.set('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+  res.end(body);
 });
 
 // GET /api/borewells
-app.get('/api/borewells', async (req, res) => {
+app.get('/api/borewells', requireAuth, async (req, res) => {
   try {
     console.log('Fetching borewells...');
     const bws  = await pool.query('SELECT * FROM borewells ORDER BY created_at DESC');
@@ -166,7 +326,7 @@ app.get('/api/borewells', async (req, res) => {
 });
 
 // GET /api/borewells/:id
-app.get('/api/borewells/:id', async (req, res) => {
+app.get('/api/borewells/:id', requireAuth, async (req, res) => {
   try {
     const bw = await fetchBorewellWithLayers(pool, req.params.id);
     if (!bw) return res.status(404).json({ error: 'Not found' });
@@ -178,7 +338,7 @@ app.get('/api/borewells/:id', async (req, res) => {
 });
 
 // POST /api/borewells
-app.post('/api/borewells', async (req, res) => {
+app.post('/api/borewells', requireAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -228,7 +388,7 @@ app.post('/api/borewells', async (req, res) => {
 });
 
 // PUT /api/borewells/:id — full replace
-app.put('/api/borewells/:id', async (req, res) => {
+app.put('/api/borewells/:id', requireAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -287,10 +447,17 @@ app.put('/api/borewells/:id', async (req, res) => {
 });
 
 // PATCH /api/borewells/:id — partial update
-app.patch('/api/borewells/:id', async (req, res) => {
+app.patch('/api/borewells/:id', requireAuth, async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     const b = req.body;
+
+    const exists = await client.query('SELECT id FROM borewells WHERE id=$1', [id]);
+    if (!exists.rows.length) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
     const fields = [];
     const vals   = [];
     let   n      = 1;
@@ -307,27 +474,53 @@ app.patch('/api/borewells/:id', async (req, res) => {
     if (b.notes                   !== undefined) add('notes',                      b.notes);
     if (b.selectedForCrossSection !== undefined) add('selected_for_cross_section', b.selectedForCrossSection);
 
-    if (!fields.length) return res.status(400).json({ error: 'Nothing to update' });
+    if (fields.length === 0 && b.layers === undefined) {
+      return res.status(400).json({ error: 'Nothing to update' });
+    }
 
-    add('updated_at', new Date().toISOString());
-    vals.push(id);
+    await client.query('BEGIN');
 
-    await pool.query(
-      `UPDATE borewells SET ${fields.join(', ')} WHERE id=$${n}`,
-      vals
-    );
+    if (fields.length > 0) {
+      add('updated_at', new Date().toISOString());
+      vals.push(id);
+      await client.query(
+        `UPDATE borewells SET ${fields.join(', ')} WHERE id=$${n}`,
+        vals
+      );
+    } else {
+      await client.query(
+        `UPDATE borewells SET updated_at=$1 WHERE id=$2`,
+        [new Date().toISOString(), id]
+      );
+    }
+
+    if (b.layers !== undefined) {
+      await client.query('DELETE FROM layers WHERE borewell_id=$1', [id]);
+      for (let i = 0; i < (b.layers || []).length; i++) {
+        const l = b.layers[i];
+        await client.query(
+          `INSERT INTO layers (id, borewell_id, start_depth, end_depth, material, color, sort_order)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [l.id, id, l.startDepth, l.endDepth, l.material, l.color || '#78909C', i]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
 
     const updated = await fetchBorewellWithLayers(pool, id);
-    if (!updated) return res.status(404).json({ error: 'Not found' });
     res.json(updated);
   } catch (err) {
-    console.error(err);
+    await client.query('ROLLBACK').catch(e => console.error('Rollback failed:', e));
+    console.error('PATCH error:', err);
     res.status(500).json({ error: 'Failed to patch borewell' });
+  } finally {
+    client.release();
   }
 });
 
 // DELETE /api/borewells/:id
-app.delete('/api/borewells/:id', async (req, res) => {
+app.delete('/api/borewells/:id', requireAuth, async (req, res) => {
   try {
     const result = await pool.query(
       'DELETE FROM borewells WHERE id=$1 RETURNING id',

@@ -6,9 +6,13 @@ import LeftSidebar from '@/components/panels/LeftSidebar';
 import RightPanel from '@/components/panels/RightPanel';
 import BottomDrawer from '@/components/panels/BottomDrawer';
 import StrataMap from '@/components/map/StrataMap';
-import CrossSection from '@/components/CrossSectionPanel';
 import ToastContainer from '@/components/ToastContainer';
+import { lazy, Suspense } from 'react';
+import { SkeletonLoader } from '@/components/SkeletonLoader';
+import { PerformancePanel } from '@/components/PerformancePanel';
 import './App.css';
+
+const CrossSectionPanel = lazy(() => import('@/components/CrossSectionPanel'));
 
 function Workspace() {
   const { state, dispatch } = useApp();
@@ -72,7 +76,9 @@ function Workspace() {
       {/* Cross-Section Overlay */}
       <AnimatePresence mode="wait">
         {state.viewMode === 'cross-section' && (
-          <CrossSection />
+          <Suspense fallback={<SkeletonLoader />}>
+            <CrossSectionPanel />
+          </Suspense>
         )}
       </AnimatePresence>
 
@@ -87,6 +93,9 @@ function Workspace() {
 
       {/* Toast Container */}
       <ToastContainer />
+
+      {/* Performance Monitor (Dev-only) */}
+      <PerformancePanel />
 
       {/* Initial Loading Overlay */}
       <AnimatePresence>

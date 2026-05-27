@@ -42,4 +42,13 @@ export type Action =
   | { type: 'ADD_TOAST';             payload: Toast }
   | { type: 'REMOVE_TOAST';          id: string }
   | { type: 'ADD_CUSTOM_MATERIAL';    payload: CustomMaterial }
-  | { type: 'DELETE_CUSTOM_MATERIAL'; name: string };
+  | { type: 'DELETE_CUSTOM_MATERIAL'; name: string }
+  | { type: 'SET_ELEVATION_FETCHED';  payload: string[] }
+  | { type: 'ADD_ELEVATION_FETCHED';  payload: string }
+  | { type: 'SET_SELECTED_BOREWELLS'; payload: string[] }
+  | { type: 'SET_WATER_TABLE_VISIBLE'; payload: boolean }
+  | { type: 'SET_TERRAIN_VISIBLE';    payload: boolean }
+  | { type: 'SET_SAVING_IDS';          payload: string[] }
+  | { type: 'ADD_SAVING_ID';           id: string }
+  | { type: 'REMOVE_SAVING_ID';        id: string };
+
