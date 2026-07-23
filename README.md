@@ -1,65 +1,27 @@
-# StrataDesk
+# StrataDesk 📊
 
-Borewell strata visualization — React + Express + PostgreSQL.
+StrataDesk is a full-stack React web application designed for borewell data management. Refactored from an initial vanilla JavaScript prototype, this web-based predecessor to the Strata ecosystem provides secure, scalable access to geological cross-section engines and drilling data.
 
-## Structure
+## 🚀 Overview
 
-```
-src/        React frontend (Vite + TypeScript + Tailwind)
-backend/    Express REST API (Node 20 + PostgreSQL)
-database/   PostgreSQL init schema
-```
+Designed for remote accessibility, StrataDesk provides a comprehensive dashboard for managing and analyzing field data. It utilizes a secured RESTful API, role-based authentication, and a robust CI/CD pipeline to ensure smooth, continuous deployment to remote AWS instances. 
 
----
+## ✨ Key Features
 
-## Run locally
+* **Unified Cross-Section Engine:** A powerful tool to visualize and correlate geological strata across multiple borewell sites.
+* **Secure Authentication:** Complete JWT-based user authentication and route protection.
+* **Secured API Endpoints:** A hardened backend built to safely transmit sensitive drilling and material data.
+* **Automated CI/CD Pipeline:** Fully configured deployment workflow utilizing a self-hosted runner to push seamless updates directly to AWS EC2.
 
-### 1. Start PostgreSQL
+## 🛠️ Tech Stack
 
-You need a local Postgres instance. Example using Docker:
+* **Frontend:** React, JavaScript (ES6+), HTML5, CSS3
+* **Backend:** Node.js, Express
+* **Infrastructure:** AWS EC2, GitHub Actions (Self-Hosted Runner)
+* **Security:** JSON Web Tokens (JWT)
 
-```bash
-docker run -d \
-  --name stratadesk-db \
-  -e POSTGRES_DB=stratadesk \
-  -e POSTGRES_USER=stratadesk \
-  -e POSTGRES_PASSWORD=stratadesk \
-  -p 5432:5432 \
-  postgres:16-alpine
-```
+## 📦 Getting Started
 
-### 2. Start the API
-
-```bash
-cd backend
-cp .env.example .env   # defaults already match the DB above
-npm install
-npm start
-# API running at http://localhost:3001
-```
-
-### 3. Start the frontend
-
-```bash
-# from repo root
-npm install
-npm run dev
-# App running at http://localhost:3000
-# /api/* is proxied to http://localhost:3001 automatically
-```
-
----
-
-## Environment variables
-
-### Backend (`backend/.env.example`)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | — | Full Postgres URL (takes priority over individual vars) |
-| `DB_HOST` | `localhost` | Postgres host |
-| `DB_PORT` | `5432` | Postgres port |
-| `DB_NAME` | `stratadesk` | Database name |
-| `DB_USER` | `stratadesk` | Database user |
-| `DB_PASSWORD` | `stratadesk` | Database password |
-| `PORT` | `3001` | API listen port |
+1. **Clone the repository:**
+   ```bash
+   git clone [https://github.com/Mehulsri07/StrataDesk.git](https://github.com/Mehulsri07/StrataDesk.git)
